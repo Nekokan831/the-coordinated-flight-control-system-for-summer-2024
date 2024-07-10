@@ -12,39 +12,21 @@ time =0:dt:t_end;
 r_kinzi = 0; %r=\dot{chi}の近似を行うか．　0:行わない　1:行う
 
 %% 各パラメータ
-%エレベータ制御に関するパラメータ1Va
-% a_ue =60;
-% b_ue = 60;
-% 
-% fp_ue=1.3; %Pゲイン
-% fd_ue=0.045; %Dゲイン
+%エレベータ制御に関するパラメータ
+a_ue =60;
+b_ue = 60;
 
-%エレベータ制御に関するパラメータ2Vg
-a_ue = 20;
-b_ue = 20;
+fp_ue=1.3; %Pゲイン
+fd_ue=0.045; %Dゲイン
 
-fp_ue=4.91; %Pゲイン
-fd_ue=0.24; %Dゲイン
-
-%エルロン制御に関するパラメータ1Va
-% a_ua=40;
-% b_ua=0.8;
-% 
-% fp_ua=1.5; %Pゲイン
-% fd_ua=0.31; %Dゲイン
-
-%エルロン制御に関するパラメータ2Vg
+%エルロン制御に関するパラメータ
 a_ua=40;
 b_ua=0.8;
 
 fp_ua=1.5; %Pゲイン
-fd_ua=0.7; %Dゲイン
+fd_ua=0.31; %Dゲイン
 
 %スロットル制御に関するパラメータ
-Vg_ = 20; %目標対地速度
-kp_Thg = 7; %Pゲイン
-kd_Thg = 0.1; %Dゲイン
-
 Vr = 12; %目標対気速度
 kp_Th = 20; %Pゲイン
 kd_Th = 0.1; %Dゲイン
@@ -174,6 +156,8 @@ chi(i,1) = psi(i,1)+beta(i,1);
 %% エルベータ制御入力%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 
+ 
+    
  if i == 1
      dgamma(i,1) = 0;
  else
@@ -212,7 +196,6 @@ chi(i,1) = psi(i,1)+beta(i,1);
 
     %エレベータ入力の計算
       u_e(i,1) = (- fp_ue * (theta(i,1) - theta_r(i,1)) - fd_ue * (q(i,1) - dtheta_r(i,1)) )*180/pi+elev_0;
-      
  %エレベータ入力の計算
  %u_e(i,1) = -(Vg(i,1) * sin(gamma(i,1))+b_ue*( Z(i,1)+a_ue*dgamma(i,1)))/(a_ue*K_ue)+elev_0;
  %u_e(i,1) =0;
@@ -285,26 +268,12 @@ end
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-%% スロットル制御入力Va%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% if i==1
-%     Ft(i,1) = -kp_Th*(Va(i,1) - Vr)-kd_Th*0 + Ft_0;
-% else 
-%     Ft(i,1) = -kp_Th*(Va(i,1) - Vr)-kd_Th*( (Va(i,1)-Va(i-1,1))/dt ) + Ft_0;
-% end
-% 
-% if Ft(i,1) > 2*Ft_0
-%     Ft(i,1) = 2*Ft_0;
-% elseif Ft(i,1) < 0
-%     Ft(i,1) = 0;
-% end
-
-%% スロットル制御入力Vg_%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% スロットル制御入力%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 if i==1
-    Ft(i,1) = -kp_Thg*(Vg(i,1) - Vg_)-kd_Thg*0 + Ft_0;
+    Ft(i,1) = -kp_Th*(Va(i,1) - Vr)-kd_Th*0 + Ft_0;
 else 
-    Ft(i,1) = -kp_Thg*(Vg(i,1) - Vg_)-kd_Thg*( (Vg(i,1)-Vg(i-1,1))/dt ) + Ft_0;
+    Ft(i,1) = -kp_Th*(Va(i,1) - Vr)-kd_Th*( (Va(i,1)-Va(i-1,1))/dt ) + Ft_0;
 end
 
 if Ft(i,1) > 2*Ft_0
@@ -312,21 +281,6 @@ if Ft(i,1) > 2*Ft_0
 elseif Ft(i,1) < 0
     Ft(i,1) = 0;
 end
-% 
-% %% スロットル制御入力Vg_P-D%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% 
-% if i==1
-%     Ft(i,1) = -kp_Thg*(Vg(i,1) - Vg_)+kd_Thg*0 + Ft_0;
-% else 
-%     Ft(i,1) = -kp_Thg*(Vg(i,1) - Vg_)+kd_Thg*( Vg(i,1)/dt ) + Ft_0;
-% end
-% 
-% if Ft(i,1) > 2*Ft_0
-%     Ft(i,1) = 2*Ft_0;
-% elseif Ft(i,1) < 0
-%     Ft(i,1) = 0;
-% end
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -426,21 +380,21 @@ psi(end,:) = [];
 %phi_r(end,:) = [];
 %% 結果プロット
 
-% %エレベータ入力
-% figure('Name','u_e','NumberTitle','off');
-% plot(time,u_e,'b-','LineWidth',2);
-% yline(elev_0,'r--','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$\delta_e$[deg.]','Interpreter','latex','FontSize',15);
-% 
-% %エルロン入力
-% figure('Name','u_a','NumberTitle','off');
-% plot(time,u_a,'b-','LineWidth',2);
-% yline(0,'r--','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$\delta_a$[deg.]','Interpreter','latex','FontSize',15);
+%エレベータ入力
+figure('Name','u_e','NumberTitle','off');
+plot(time,u_e,'b-','LineWidth',2);
+yline(elev_0,'r--','LineWidth',2);
+xlim([time(1,1) time(1,end)]);
+xlabel('t[s]','FontSize',15);
+ylabel('$\delta_e$[deg.]','Interpreter','latex','FontSize',15);
+
+%エルロン入力
+figure('Name','u_a','NumberTitle','off');
+plot(time,u_a,'b-','LineWidth',2);
+yline(0,'r--','LineWidth',2);
+xlim([time(1,1) time(1,end)]);
+xlabel('t[s]','FontSize',15);
+ylabel('$\delta_a$[deg.]','Interpreter','latex','FontSize',15);
 
 %スロットル入力
 figure('Name','Ft','NumberTitle','off');
@@ -452,94 +406,87 @@ ylabel('$Ft$[N]','Interpreter','latex','FontSize',15);
 
 
 %並進速度
-%Va,Vg,u,v,w
+%Va,u,v,w
 figure('Name','Va','NumberTitle','off');
 plot(time,Va,'b-','LineWidth',2);
-yline(Vr,'r--','LineWidth',2);
+yline(12,'r--','LineWidth',2);
 xlim([time(1,1) time(1,end)]);
 xlabel('t[s]','FontSize',15);
 ylabel('$Va$[m/s]','Interpreter','latex','FontSize',15);
 
-figure('Name','Vg','NumberTitle','off');
-plot(time,Vg,'b-','LineWidth',2);
-yline(Vg_,'r--','LineWidth',2);
+figure('Name','u','NumberTitle','off');
+plot(time,u,'b-','LineWidth',2);
 xlim([time(1,1) time(1,end)]);
 xlabel('t[s]','FontSize',15);
-ylabel('$Vg$[m/s]','Interpreter','latex','FontSize',15);
+ylabel('$u$[m/s]','Interpreter','latex','FontSize',15);
 
-% figure('Name','u','NumberTitle','off');
-% plot(time,u,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$u$[m/s]','Interpreter','latex','FontSize',15);
-% 
-% figure('Name','v','NumberTitle','off');
-% plot(time,v,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$v$[m/s]','Interpreter','latex','FontSize',15);
-% 
-% figure('Name','w','NumberTitle','off');
-% plot(time,w,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$w$[m/s]','Interpreter','latex','FontSize',15);
+figure('Name','v','NumberTitle','off');
+plot(time,v,'b-','LineWidth',2);
+xlim([time(1,1) time(1,end)]);
+xlabel('t[s]','FontSize',15);
+ylabel('$v$[m/s]','Interpreter','latex','FontSize',15);
+
+figure('Name','w','NumberTitle','off');
+plot(time,w,'b-','LineWidth',2);
+xlim([time(1,1) time(1,end)]);
+xlabel('t[s]','FontSize',15);
+ylabel('$w$[m/s]','Interpreter','latex','FontSize',15);
 
 %角速度
 %p,q,r
-% figure('Name','p','NumberTitle','off');
-% plot(time,p*180/pi,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$p$[deg./s]','Interpreter','latex','FontSize',15);
-% 
-% figure('Name','q','NumberTitle','off');
-% plot(time,q*180/pi,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$q$[deg./s]','Interpreter','latex','FontSize',15);
-% 
-% figure('Name','r','NumberTitle','off');
-% plot(time,r*180/pi,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$r$[deg./s]','Interpreter','latex','FontSize',15);
+figure('Name','p','NumberTitle','off');
+plot(time,p*180/pi,'b-','LineWidth',2);
+xlim([time(1,1) time(1,end)]);
+xlabel('t[s]','FontSize',15);
+ylabel('$p$[deg./s]','Interpreter','latex','FontSize',15);
+
+figure('Name','q','NumberTitle','off');
+plot(time,q*180/pi,'b-','LineWidth',2);
+xlim([time(1,1) time(1,end)]);
+xlabel('t[s]','FontSize',15);
+ylabel('$q$[deg./s]','Interpreter','latex','FontSize',15);
+
+figure('Name','r','NumberTitle','off');
+plot(time,r*180/pi,'b-','LineWidth',2);
+xlim([time(1,1) time(1,end)]);
+xlabel('t[s]','FontSize',15);
+ylabel('$r$[deg./s]','Interpreter','latex','FontSize',15);
 
 %角度
 %phi,theta,psi
-% figure('Name','phi','NumberTitle','off');
-% plot(time,phi*180/pi,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$\phi$[deg.]','Interpreter','latex','FontSize',15);
-% 
-% figure('Name','theta','NumberTitle','off');
-% plot(time,theta*180/pi,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$\theta$[deg.]','Interpreter','latex','FontSize',15);
-% 
-% figure('Name','psi','NumberTitle','off');
-% plot(time,psi*180/pi,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$\psi$[deg.]','Interpreter','latex','FontSize',15);
+figure('Name','phi','NumberTitle','off');
+plot(time,phi*180/pi,'b-','LineWidth',2);
+xlim([time(1,1) time(1,end)]);
+xlabel('t[s]','FontSize',15);
+ylabel('$\phi$[deg.]','Interpreter','latex','FontSize',15);
+
+figure('Name','theta','NumberTitle','off');
+plot(time,theta*180/pi,'b-','LineWidth',2);
+xlim([time(1,1) time(1,end)]);
+xlabel('t[s]','FontSize',15);
+ylabel('$\theta$[deg.]','Interpreter','latex','FontSize',15);
+
+figure('Name','psi','NumberTitle','off');
+plot(time,psi*180/pi,'b-','LineWidth',2);
+xlim([time(1,1) time(1,end)]);
+xlabel('t[s]','FontSize',15);
+ylabel('$\psi$[deg.]','Interpreter','latex','FontSize',15);
 
 %x,y,z偏差
-% figure('Name','X','NumberTitle','off');
-% plot(time,X,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$x$[m]','Interpreter','latex','FontSize',15);
+figure('Name','X','NumberTitle','off');
+plot(time,X,'b-','LineWidth',2);
+xlim([time(1,1) time(1,end)]);
+xlabel('t[s]','FontSize',15);
+ylabel('$x$[m]','Interpreter','latex','FontSize',15);
 
-figure('Name','横偏差','NumberTitle','off');
+figure('Name','Y','NumberTitle','off');
 plot(time,Y,'b-','LineWidth',2);
 yline(0,'r--','LineWidth',2);
 xlim([time(1,1) time(1,end)]);
 xlabel('t[s]','FontSize',15);
 ylabel('$y$[m]','Interpreter','latex','FontSize',15);
 
-figure('Name','縦偏差','NumberTitle','off');
+figure('Name','Z','NumberTitle','off');
 plot(time,Z,'b-','LineWidth',2);
 yline(0,'r--','LineWidth',2);
 xlim([time(1,1) time(1,end)]);
