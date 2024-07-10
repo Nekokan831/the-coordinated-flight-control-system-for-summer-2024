@@ -152,9 +152,6 @@ for i = 1 : length(time)
     t = i*dt
 
 %% •Ï”İ’è
-
-
-
 Va(i,1) =sqrt(u(i,1)^2+v(i,1)^2+w(i,1)^2);
 Vg(i,1)=Va(i,1); 
 
