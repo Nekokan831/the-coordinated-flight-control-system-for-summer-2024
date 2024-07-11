@@ -75,6 +75,15 @@ Ixx=0.1580;
 
 Mc=rho*Ss*ww*V^2*(0.1659*d0+0.2578)/2;
 
+%% パラメータ
+a = 40;
+b = 0.8;
+c = 0;
+
+%% ゲイン
+fp = 1.7;
+fd = 0.15;
+
 %% 計算（シミュレーション本体）
 for i = 1 : length(time)
     
@@ -149,12 +158,11 @@ for i = 1 : length(time)
     y_e = x_e_vec(i,2);  % [m]
     chi_e = x_e_vec(i,3);  % [rad]
 
-    %% パラメータ
-    a = 40;
-    b = 0.8;
-    c = 0;
+
+
+    %% 目標ロール角の計算
+    %目標ロール角の計算
+    %A_Practical_Design_Approach_for_Complex_Path_Tracking_Controlの式26
+    phi_r(i,1) = atan((V_g(i,1)/(a*g))*(b*(y_e+a*chi_e)+V_g(i,1)*sin(chi_e)-V_g(i,1)*kappa*x_e*cos(chi_e)+a*dchi_d(i,1)-c*kappa*x_e^2));
     
-    %% ゲイン
-    fp = 1.7;
-    fd = 0.15;
 end
