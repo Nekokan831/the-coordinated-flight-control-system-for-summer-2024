@@ -22,7 +22,7 @@ x_eI_0 = [0,0,0*pi/180]; %x_0,y_0,psi_0 %rem
 
 
 %UAV速度設定
-V = 12;  %対気速度[m/s]
+V_a = 12;  %対気速度[m/s]
 
 %初期状態の計算
 Cxi0 = [0, 0, 0, dt, 0, 0, 0]; % F_PATH へ与える入力の初期状態:s,dot_s,t,dt,s_old,xi_old,i_sar
@@ -94,4 +94,13 @@ for i = 1 : length(time)
 
     %慣性座標系におけるx,yの目標との偏差
     x_eI = (X_I(i,1:2) - F(i,1:2))';
+
+    %対地速度Vgの計算
+    %機体座標系{B} → 慣性座標系{I}の回転行列
+     SyIB=[cos(psi) sin(psi);  % ヨー回転
+          -sin(psi) cos(psi)];
+
+    % 対地速度ベクトル
+    V_g_vec = SyIB*[V_a; 0] + [Wx; Wy];  % [m/s]
+
 end
