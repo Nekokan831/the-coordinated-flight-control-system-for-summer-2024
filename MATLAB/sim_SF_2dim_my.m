@@ -77,3 +77,11 @@ for i = 1 : length(time)
     
     % Wx = 1;
     % Wy = 1;
+
+    %慣性座標系における状態の取り出し．
+    xI =X_I(i,1); %位置x[m]
+    yI =X_I(i,2); %位置y[m]
+    psi=X_I(i,3); %ヨー角[rad]
+    s = X_I(i,4); %経路長s [m]
+
+end
