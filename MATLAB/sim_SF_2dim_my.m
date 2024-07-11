@@ -64,3 +64,16 @@ p_0 = 0;
 
 phi(1,1) = phi_0;
 p(1,1) = p_0;
+
+%% 計算
+for i = 1 : length(time)
+    
+    %時間を表示
+    t = i*dt
+    
+    %風の設定
+    Wx = 3*sin(2*t);
+    Wy = 3*sin(2*t);
+    
+    % Wx = 1;
+    % Wy = 1;
