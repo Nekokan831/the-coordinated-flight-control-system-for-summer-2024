@@ -19,7 +19,8 @@ t_end = 100;
 time =0:dt:t_end;
 
 %初期状態：慣性座標系における目標座標からの偏差
-x_eI_0 = [2.6652,33.816,20*pi/180]; %x_0,y_0,psi_0 %rem
+%x_eI_0 = [2.6652,33.816,20*pi/180]; %x_0,y_0,psi_0 %rem
+x_eI_0 = [0,0,0]; %x_0,y_0,psi_0 %rem
 
 phi_0 = 0;
 p_0 = 0;
@@ -84,8 +85,8 @@ for i = 1 : length(time)
     t = i*dt
     
     %風の設定
-    Wx = 2*sin(2*t);
-    Wy = 2*sin(2*t);
+    Wx = 3*sin(2*t);
+    Wy = 3*sin(2*t);
     
     % Wx = 1;
     % Wy = 1;
