@@ -1,597 +1,780 @@
 clc
-close all
 clear
+close all
+ 
+% アニメーション設定
+anime_ON = 0;   % アニメーションの　オン・オフ 0:なし，1:ひとつ，2:いろんな角度
+SS = 5;   % アニメーション速度，プロットの間隔
+PPG_size = 0.5;   % アニメーションの時のPPGの大きさ
+% アニメーションの視点
+az_a = -37.5;   %方位角(3次元初期設定は -37.5)
+el_a = 30;   %仰角(3次元初期設定は 30)
+plot2D = 0;   % 2次元プロットの有無 
 
-%% シミュレーション時間
-dt = 0.001; 
-t_end =50;
+
+%シミュレーション時間
+dt = 0.05; 
+t_end = 100;
+%t_end = 55;
 time =0:dt:t_end;
 
-%%近似
+%初期状態：慣性座標系における目標座標からの偏差
+x_eI_0 = [2.6652,33.816,20*pi/180]; %x_0,y_0,psi_0 %rem
 
-r_kinzi = 0; %r=\dot{chi}の近似を行うか．　0:行わない　1:行う
-
-%% 各パラメータ
-%エレベータ制御に関するパラメータ1Va
-a_ue =60;
-b_ue = 60;
-
-fp_ue=1.3; %Pゲイン
-fd_ue=0.045; %Dゲイン
-
-% %エレベータ制御に関するパラメータ2Vg
-% a_ue = 20;
-% b_ue = 20;
-% 
-% fp_ue=4.91; %Pゲイン
-% fd_ue=0.24; %Dゲイン
-
-%エルロン制御に関するパラメータ1Va
-a_ua=40;
-b_ua=0.8;
-
-fp_ua=1.5; %Pゲイン
-fd_ua=0.31; %Dゲイン
-
-% %エルロン制御に関するパラメータ2Vg
-% a_ua=40;
-% b_ua=0.8;
-% 
-% fp_ua=1.5; %Pゲイン
-% fd_ua=0.7; %Dゲイン
-
-%スロットル制御に関するパラメータ
-Vg_ = 12; %目標対地速度
-kp_Thg = 7; %Pゲイン
-kd_Thg = 0.1; %Dゲイン
-
-Vr = 12; %目標対気速度
-kp_Th = 20; %Pゲイン
-kd_Th = 0.1; %Dゲイン
-
-%事前割り当て(計算高速化のため，あらかじめ変数を格納する箱を作っているだけ)
-
-dot_u = zeros([length(time),1]);
-dot_v = zeros([length(time),1]);
-dot_w = zeros([length(time),1]);
-
-dot_p = zeros([length(time),1]);
-dot_q = zeros([length(time),1]);
-dot_r = zeros([length(time),1]);
-
-dot_phi = zeros([length(time),1]);
-dot_theta= zeros([length(time),1]);
-dot_psi = zeros([length(time),1]);
-
-dot_X = zeros([length(time),1]);
-dot_Y = zeros([length(time),1]);
-dot_Z = zeros([length(time),1]);
+phi_0 = 0;
+p_0 = 0;
 
 
-u= zeros([length(time),1]);
-v= zeros([length(time),1]);
-w= zeros([length(time),1]);
+%風の設定
+% Wx = 2*sin(2*time);
+% Wy = 2*sin(2*time);
 
-p= zeros([length(time),1]);
-q= zeros([length(time),1]);
-r= zeros([length(time),1]);
+%UAV速度設定
+%V = 12; %対気速度[m/s]
+V = 12;
 
-phi= zeros([length(time),1]);
-theta= zeros([length(time),1]);
-psi= zeros([length(time),1]);
-
-X= zeros([length(time),1]);
-Y= zeros([length(time),1]);
-Z= zeros([length(time),1]);
+%初期状態の計算
+Cxi0 = [0, 0, 0, dt, 0, 0, 0]; % F_PATH へ与える入力の初期状態:s,dot_s,t,dt,s_old,xi_old,i_sar
+X_I_0 = F_PATH_FX79_r1(Cxi0)'+[x_eI_0, 0, 0, 0, 0]'; % 慣性座標系における初期状態：x_d,y_d,χ_d,dχ_d,κ,xi,i
 
 
-u_a = zeros([length(time),1]);
-u_e = zeros([length(time),1]);
-Ft = zeros([length(time),1]);
 
-chi= zeros([length(time),1]);
+%事前割り当て
+x_e_vec = zeros([length(time),5]); % 誤差ダイナミクスの状態量x_eベクトル，および s, xi
+dx_e_vec = zeros([length(time),5]);% x_eベクトルの微分値
+F = zeros([length(time),7]); % 慣性座標系における"目標"座標，および曲率など
+X_I = zeros([length(time),5]); % 慣性座標位置における状態，および s
+dX_I = zeros([length(time),5]);% 慣性座標位置における状態の微分値
+V_g = zeros([length(time),1]); % 対地速度v_g
+phi = zeros([length(time),1]); % ロール角Φ
+p = zeros([length(time),1]); % ロール角速度p
+phi_r = zeros([length(time),1]); % 目標ロール角Φr
+dphi_r = zeros([length(time),1]); % ロール角速度dΦr
+delta_a = zeros([length(time),1]); % エルロン入力
+error = zeros([length(time),1]); % ヨー角と飛行経路角の差分の観測用
+GammaChi = zeros([length(time),2]);
+Cxi = zeros([length(time),7]);   % F_PATHへの入力の計算用
+ZV = zeros([length(time),1]); % 0ベクトル
 
-Va= zeros([length(time),1]);
-alpha= zeros([length(time),1]);
-beta = zeros([length(time),1]);
+phi_r_f= zeros([length(time),1]);
+D_phi_r_f = zeros([length(time),1]);
 
-Vg=zeros([length(time),1]);
+dchi_d = zeros([length(time),1]);
 
+dchi_d_f = zeros([length(time),1]);
+D_dchi_d_f = zeros([length(time),1]);
 
-phi_r  = zeros([length(time),1]);
-dphi_r = zeros([length(time),1]);
+delta_a_x = zeros([length(time),1]);
 
-theta_r  = zeros([length(time),1]);
-dtheta_r = zeros([length(time),1]);
+% 初期値の代入
+X_I(1,:) = X_I_0(1:5,1)';   % 初期値の代入
+Cxi(1,:) = Cxi0;
 
-% 
-gamma= zeros([length(time),1]);
-dgamma= zeros([length(time),1]);
+phi(1,1) = phi_0;
+p(1,1) = p_0;
 
-
-%% 定数設定
-
-g = 9.80665; %重力加速度
-W = 2.0; %翼幅
-m = 2.320; %機体重量
-Ixx = 0.1580; %x軸慣性モーメント
-Iyy = 0.07152; %y軸慣性モーメント
-Izz = 0.1959; %z軸慣性モーメント
-S = 0.42; %翼面積
-c = 0.32; %翼弦長
-rho = 1.155; %空気密度
-
-%平衡点
-alpha_0 = 0.0905;
-elev_0 = 14.5311;
-Ft_0 = 3.1701;
-
-% 初期値設定
-
-u(1,1)=11;
-v(1,1)=0;
-w(1,1)=0;
-
-p(1,1)=0;
-q(1,1)=0;
-r(1,1)=0;
-
-phi(1,1)=0;
-theta(1,1)=0;
-psi(1,1)=0;
-
-X(1,1)=0;
-Y(1,1)=5;
-Z(1,1)=5;
-
-%% シミュレーション
+%% 計算
 
 for i = 1 : length(time)
     
     %時間を表示
     t = i*dt
+    
+    Wx = 1;
+    Wy = 1;
 
-%% 変数設定
-Va(i,1) =sqrt(u(i,1)^2+v(i,1)^2+w(i,1)^2);
-Vg(i,1)=Va(i,1); 
-
-alpha(i,1) = atan(w(i,1)/u(i,1));
-
-if alpha(i,1) >0.1745
-    alpha(i,1) =0.1745;
-elseif alpha(i,1) < -0.3142
-    alpha(i,1) = -0.3142;
-end
-beta(i,1) = atan(v(i,1)/Va(i,1));
-
-gamma(i,1) = theta(i,1)-alpha(i,1);
-chi(i,1) = psi(i,1)+beta(i,1);
-
-%% 協調制御の実装%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-other_UAV = [X(i,1),Y(i,1),chi(i,1)];
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-%% エルベータ制御入力%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
- if i == 1
-     dgamma(i,1) = 0;
- else
-     dgamma(i,1) = (gamma(i,1) - gamma(i - 1,1)) / dt;
- end 
-
- if dgamma(i,1) >= 100 * pi / 180
-     dgamma(i,1) = 100 * pi / 180;
- elseif dgamma(i,1) <= - 100 * pi / 180
-     dgamma(i,1) = - 100 * pi / 180;
- end
-
- %目標ピッチ角の計算
-    theta_r(i,1) =  -( ( Vg(i,1) * sin(gamma(i,1)) + a_ue*dgamma(i,1) ) / b_ue + Z(i,1)) / a_ue+alpha(i,1);
-
-    % 目標ピッチ角の上限下限値を設定
-    if theta_r(i,1) >= 30 * pi / 180
-        theta_r(i,1) = 30 * pi / 180;
-    elseif theta_r(i,1) <= - 30 * pi / 180
-        theta_r(i,1) = - 30 * pi / 180;
-    end
-      
-    %目標ピッチ角速度の計算
-    if i == 1
-        dtheta_r(i,1) = 0;
-    else
-        dtheta_r(i,1) = (theta_r(i,1) - theta_r(i - 1,1)) / dt;
-    end 
-
-        if dtheta_r(i,1) >= 60 * pi / 180
-        dtheta_r(i,1) = 60 * pi / 180;
-    elseif dtheta_r(i,1) <= - 60 * pi / 180
-        dtheta_r(i,1) = - 60 * pi / 180;
+%       Wx = 0;
+%       Wy = 0;  
+    
+    %慣性座標系における状態の取り出し．
+    xI =X_I(i,1); %位置x[m]
+    yI =X_I(i,2); %位置y[m]
+    psi=X_I(i,3); %ヨー角[rad]
+    s = X_I(i,4); %経路長s [m]
+    
+    %参照経路情報
+    F(i,:) = F_PATH_FX79_r1(Cxi(i,:))';
+    %↓↓↓
+    chi_d = F(i,3);  % 目標航路角[rad]
+    
+    dchi_d(i,1) = F(i,4); % 目標航路角速度 [rad/s]
+  
+    kappa = F(i,5);  % 曲率[rad/m]
+    xi = F(i,6);     % 媒介変数 xi（ζ）
+    
+    %慣性座標系におけるx,yの目標との偏差
+    x_eI = (X_I(i,1:2) - F(i,1:2))';
+    
+    %対地速度Vgの計算
+     % 機体座標系{B} → 慣性座標系{I}の回転行列
+    SyIB=[cos(psi) sin(psi);  % ヨー回転
+        -sin(psi) cos(psi)];
+    % 対地速度ベクトル
+    V_g_vec = SyIB*[V; 0] + [Wx; Wy];  % [m/s]
+    
+    % 対地速度の大きさ
+    V_g(i,1) = norm(V_g_vec);  % [m/s]
+    % 航路角の導出
+    chi = atan2(-V_g_vec(2),V_g_vec(1));  % [rad]
+    
+    
+    %% 慣性座標系からセレ・フレネ座標系への変換
+    x_e_vec(i,3) = -chi + chi_d; %χe
+    while (x_e_vec(i,3) < -pi || x_e_vec(i,3) >= pi) % 0 <= chi_e < 2*pi の否定
+        if (x_e_vec(i,3) > pi)
+            x_e_vec(i,3) = x_e_vec(i,3) - 2*pi;
+        elseif (x_e_vec(i,3) < -pi)
+            x_e_vec(i,3) = x_e_vec(i,3) + 2*pi;
         end
-
-
-    %エレベータ入力の計算
-      u_e(i,1) = (- fp_ue * (theta(i,1) - theta_r(i,1)) - fd_ue * (q(i,1) - dtheta_r(i,1)) )*180/pi+elev_0;
-      
- %エレベータ入力の計算
- %u_e(i,1) = -(Vg(i,1) * sin(gamma(i,1))+b_ue*( Z(i,1)+a_ue*dgamma(i,1)))/(a_ue*K_ue)+elev_0;
- %u_e(i,1) =0;
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%% エルロン制御入力%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-phi_r(i,1) = atan((Vg(i,1)/(a_ua*g))*(-b_ua*(Y(i,1)+a_ua*chi(i,1))-Vg(i,1)*sin(chi(i,1))));
-
-    % 目標ピッチ角の上限下限値を設定
-    if phi_r(i,1) >= 60 * pi / 180
-        phi_r(i,1) = 60 * pi / 180;
-    elseif phi_r(i,1) <= - 60 * pi / 180
-        phi_r(i,1) = - 60 * pi / 180;
     end
-
-if i == 1
-    dphi_r(i,1) = 0;
-else
-    dphi_r(i,1) = (phi_r(i,1)-phi_r(i-1,1))/dt;
-end 
-
-    if dphi_r(i,1) >= 60 * pi / 180
-        dphi_r(i,1) = 60 * pi / 180;
-    elseif dphi_r(i,1) <= - 60 * pi / 180
-        dphi_r(i,1) = - 60 * pi / 180;
-    end
-
- %エルロン入力の計算
-u_a(i,1) = (-fp_ua*(phi(i,1)-phi_r(i,1))-fd_ua*(p(i,1) - dphi_r(i,1)))*180/pi;
-
-
-%u_a(i,1) = (-fp_ua*Y(i,1)-fd_ua*dot_Y(i,1));
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%% ミキシング%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% エレベータ入力を-20deg~20degに制限
-if u_e(i,1) > 20
-    u_e(i,1) = 20;
-elseif u_e(i,1) < -20
-    u_e(i,1) = -20;
-end
-
-% エルロン入力を-20deg~20degに制限
-if u_a(i,1) > 20
-    u_a(i,1) = 20;
-elseif u_a(i,1) < -20
-    u_a(i,1) = -20;
-end
-
-%ミキシング
-d_R = u_e(i,1) + u_a(i,1);
-d_L = u_e(i,1) - u_a(i,1);
-
-% 右翼エレボン舵角を-20deg~20degに制限
-if d_R > 20
-    d_R = 20;
-elseif d_R < -20
-    d_R = -20;
-end
-
-% 左翼エレボン舵角を-20deg~20degに制限
-if d_L > 20
-    d_L = 20;
-elseif d_L < -20
-    d_L = -20;
-end
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%% スロットル制御入力Va%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-if i==1
-    Ft(i,1) = -kp_Th*(Va(i,1) - Vr)-kd_Th*0 + Ft_0;
-else 
-    Ft(i,1) = -kp_Th*(Va(i,1) - Vr)-kd_Th*( (Va(i,1)-Va(i-1,1))/dt ) + Ft_0;
-end
-
-if Ft(i,1) > 2*Ft_0
-    Ft(i,1) = 2*Ft_0;
-elseif Ft(i,1) < 0
-    Ft(i,1) = 0;
-end
-
-%% スロットル制御入力Vg_%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% if i==1
-%     Ft(i,1) = -kp_Thg*(Vg(i,1) - Vg_)-kd_Thg*0 + Ft_0;
-% else 
-%     Ft(i,1) = -kp_Thg*(Vg(i,1) - Vg_)-kd_Thg*( (Vg(i,1)-Vg(i-1,1))/dt ) + Ft_0;
-% end
-% 
-% if Ft(i,1) > 2*Ft_0
-%     Ft(i,1) = 2*Ft_0;
-% elseif Ft(i,1) < 0
-%     Ft(i,1) = 0;
-% end
-% 
-% %% スロットル制御入力Vg_P-D%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% 
-% if i==1
-%     Ft(i,1) = -kp_Thg*(Vg(i,1) - Vg_)+kd_Thg*0 + Ft_0;
-% else 
-%     Ft(i,1) = -kp_Thg*(Vg(i,1) - Vg_)+kd_Thg*( Vg(i,1)/dt ) + Ft_0;
-% end
-% 
-% if Ft(i,1) > 2*Ft_0
-%     Ft(i,1) = 2*Ft_0;
-% elseif Ft(i,1) < 0
-%     Ft(i,1) = 0;
-% end
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%% シミュレーションの式
-
-C_L_mat = [-1.666*1e-7 -1.272*1e-6 1.034*1e-5 -5.228*1e-5 0.04190 0.2232 -3.358*1e-5 -0.007591];
-C_D_mat = [6.713*1e-8 5.151*1e-8 -3.298*1e-5 5.992*1e-4 0.006312 0.03464 3.133*1e-5 -0.002794];
-
-C_Mx_mat =[5.748*1e-8 6.026*1e-7 -5.592*1e-6 -3.944*1e-5 -0.01022 -0.05403 1.263*1e-5 0.00225];
-C_My_mat =[2.064*1e-8 1.247*1e-6 6.259*1e-6 -3.454*1e-4 -0.007662 -0.03874 7.805*1e-6 0.005799];
-C_Mz_mat =[2.092*1e-8 5.792*1e-7 -4.378*1e-6 -1.885*1e-4 -1.145*1e-4 0.006961 9.491*1e-6 -8.274*1e-5];
-
-d_R_mat = [(alpha(i,1)*180/pi)^5 ; (alpha(i,1)*180/pi)^4 ; (alpha(i,1)*180/pi)^3 ; (alpha(i,1)*180/pi)^2 ; (alpha(i,1)*180/pi);1 ; d_R^2;d_R];
-d_L_mat = [(alpha(i,1)*180/pi)^5 ; (alpha(i,1)*180/pi)^4 ; (alpha(i,1)*180/pi)^3 ; (alpha(i,1)*180/pi)^2 ; (alpha(i,1)*180/pi);1 ; d_L^2;d_L];
-
-C_L = C_L_mat*(d_R_mat+d_L_mat);
-C_D = C_D_mat*(d_R_mat+d_L_mat);
-
-C_Mx= C_Mx_mat*(d_R_mat - d_L_mat);
-C_My = C_My_mat*(d_R_mat + d_L_mat);
-C_Mz= C_Mz_mat*(d_R_mat - d_L_mat);
-
-L = 0.5*rho*S*Va(i,1)^2*C_L;
-D = 0.5*rho*S*Va(i,1)^2*C_D;
-
-Mx= 0.5*rho*S*W*Va(i,1)^2*C_Mx;
-My= 0.5*rho*S*c*Va(i,1)^2*C_My;
-Mz= 0.5*rho*S*W*Va(i,1)^2*C_Mz;
-
-
-%% モデル式%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-dot_u(i,1) = -q(i,1)*w(i,1)+r(i,1)*v(i,1)+(Ft(i,1)-m*g*sin(theta(i,1))+L*sin(alpha(i,1))-D*cos(alpha(i,1))*cos(beta(i,1)) )/m;
-dot_v(i,1) = -r(i,1)*u(i,1)+p(i,1)*w(i,1)+(m*g*sin(phi(i,1))*cos(theta(i,1))-D*sin(beta(i,1)) )/m;
-dot_w(i,1) = -p(i,1)*v(i,1)+q(i,1)*u(i,1)+(m*g*cos(phi(i,1))*cos(theta(i,1))-L*cos(alpha(i,1))-D*sin(alpha(i,1))*cos(beta(i,1)) )/m;
-
-dot_p(i,1) = (Iyy-Izz)/Ixx*q(i,1)*r(i,1)+Mx/Ixx; %p
-dot_q(i,1) = (Izz-Ixx)/Iyy*r(i,1)*p(i,1)+My/Iyy; %q
-dot_r(i,1) = (Ixx-Iyy)/Izz*p(i,1)*q(i,1)+Mz/Izz; %r
-
-dot_phi(i,1) = p(i,1)+q(i,1)*sin(phi(i,1))*tan(theta(i,1))+r(i,1)*cos(phi(i,1))*tan(theta(i,1)); %phi
-dot_theta(i,1) = q(i,1)*cos(phi(i,1))-r(i,1)*sin(phi(i,1)); %theta
-
-if r_kinzi ==0
-    dot_psi(i,1) = q(i,1)*sin(phi(i,1))/cos(theta(i,1))+r(i,1)*cos(phi(i,1))/cos(theta(i,1));
-else
-    dot_psi(i,1) =  g/(Vg(i,1)*cos(gamma(i,1)))*tan(phi(i,1));
-end
-
-dot_X(i,1) = u(i,1)*cos(psi(i,1))*cos(theta(i,1))+v(i,1)*(cos(psi(i,1))*sin(theta(i,1))*sin(phi(i,1))-sin(psi(i,1))*cos(phi(i,1)))+w(i,1)*(cos(psi(i,1))*sin(theta(i,1))*cos(phi(i,1))+sin(psi(i,1))*sin(phi(i,1))); %X
-dot_Y(i,1) = u(i,1)*sin(psi(i,1))*cos(theta(i,1))+v(i,1)*(sin(psi(i,1))*sin(theta(i,1))*sin(phi(i,1))+cos(psi(i,1))*cos(phi(i,1)))+w(i,1)*(sin(psi(i,1))*sin(theta(i,1))*cos(phi(i,1))-cos(psi(i,1))*sin(phi(i,1)));; %Y
-dot_Z(i,1) = u(i,1)*sin(theta(i,1))-v(i,1)*cos(theta(i,1))*sin(phi(i,1))-w(i,1)*cos(theta(i,1))*cos(phi(i,1)); %Z
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%% 次のステップの状態の計算（単純積分）%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-u(i+1,1)= u(i,1) + dot_u(i,1)*dt;
-v(i+1,1)= v(i,1) + dot_v(i,1)*dt;
-w(i+1,1)= w(i,1) + dot_w(i,1)*dt;
-
-p(i+1,1)= p(i,1) + dot_p(i,1)*dt;
-q(i+1,1)= q(i,1) + dot_q(i,1)*dt;
-r(i+1,1)= r(i,1) + dot_r(i,1)*dt;
-
-phi(i+1,1)= phi(i,1) + dot_phi(i,1)*dt;
-theta(i+1,1)= theta(i,1) + dot_theta(i,1)*dt;
-psi(i+1,1) = psi(i,1) + dot_psi(i,1)*dt;
-
-X(i+1,1)= X(i,1) + dot_X(i,1)*dt;
-Y(i+1,1)= Y(i,1) + dot_Y(i,1)*dt;
-Z(i+1,1)= Z(i,1) + dot_Z(i,1)*dt;
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-
-
-%alpha(i+1,1)= alpha(i,1) + dot_alpha(i,1)*dt;
-%psi(i+1,1)= psi(i,1) + dot_psi(i,1)*dt;
-
-end 
-%% シミュレーション終了
-u(end,:) = [];
-v(end,:) = [];
-w(end,:) = [];
-
-p(end,:) = [];
-q(end,:) = [];
-r(end,:) = [];
-X(end,:) = [];
-Y(end,:) = [];
-Z(end,:) = [];
-phi(end,:) = [];
-theta(end,:) = [];
-alpha(end,:) = [];
-psi(end,:) = [];
-
-%phi_r(end,:) = [];
-%% 結果プロット
-
-% %エレベータ入力
-% figure('Name','u_e','NumberTitle','off');
-% plot(time,u_e,'b-','LineWidth',2);
-% yline(elev_0,'r--','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$\delta_e$[deg.]','Interpreter','latex','FontSize',15);
-% 
-% %エルロン入力
-% figure('Name','u_a','NumberTitle','off');
-% plot(time,u_a,'b-','LineWidth',2);
-% yline(0,'r--','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$\delta_a$[deg.]','Interpreter','latex','FontSize',15);
-
-%スロットル入力
-figure('Name','Ft','NumberTitle','off');
-plot(time,Ft,'b-','LineWidth',2);
-yline(Ft_0,'r--','LineWidth',2);
-xlim([time(1,1) time(1,end)]);
-xlabel('t[s]','FontSize',15);
-ylabel('$Ft$[N]','Interpreter','latex','FontSize',15);
-
-
-%並進速度
-%Va,Vg,u,v,w
-figure('Name','Va','NumberTitle','off');
-plot(time,Va,'b-','LineWidth',2);
-yline(Vr,'r--','LineWidth',2);
-xlim([time(1,1) time(1,end)]);
-xlabel('t[s]','FontSize',15);
-ylabel('$Va$[m/s]','Interpreter','latex','FontSize',15);
-
-figure('Name','Vg','NumberTitle','off');
-plot(time,Vg,'b-','LineWidth',2);
-yline(Vg_,'r--','LineWidth',2);
-xlim([time(1,1) time(1,end)]);
-xlabel('t[s]','FontSize',15);
-ylabel('$Vg$[m/s]','Interpreter','latex','FontSize',15);
-
-% figure('Name','u','NumberTitle','off');
-% plot(time,u,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$u$[m/s]','Interpreter','latex','FontSize',15);
-% 
-% figure('Name','v','NumberTitle','off');
-% plot(time,v,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$v$[m/s]','Interpreter','latex','FontSize',15);
-% 
-% figure('Name','w','NumberTitle','off');
-% plot(time,w,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$w$[m/s]','Interpreter','latex','FontSize',15);
-
-%角速度
-%p,q,r
-% figure('Name','p','NumberTitle','off');
-% plot(time,p*180/pi,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$p$[deg./s]','Interpreter','latex','FontSize',15);
-% 
-% figure('Name','q','NumberTitle','off');
-% plot(time,q*180/pi,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$q$[deg./s]','Interpreter','latex','FontSize',15);
-% 
-% figure('Name','r','NumberTitle','off');
-% plot(time,r*180/pi,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$r$[deg./s]','Interpreter','latex','FontSize',15);
-
-%角度
-%phi,theta,psi
-% figure('Name','phi','NumberTitle','off');
-% plot(time,phi*180/pi,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$\phi$[deg.]','Interpreter','latex','FontSize',15);
-% 
-% figure('Name','theta','NumberTitle','off');
-% plot(time,theta*180/pi,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$\theta$[deg.]','Interpreter','latex','FontSize',15);
-% 
-% figure('Name','psi','NumberTitle','off');
-% plot(time,psi*180/pi,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$\psi$[deg.]','Interpreter','latex','FontSize',15);
-
-%x,y,z偏差
-% figure('Name','X','NumberTitle','off');
-% plot(time,X,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$x$[m]','Interpreter','latex','FontSize',15);
-
-figure('Name','横偏差','NumberTitle','off');
-plot(time,Y,'b-','LineWidth',2);
-yline(0,'r--','LineWidth',2);
-xlim([time(1,1) time(1,end)]);
-xlabel('t[s]','FontSize',15);
-ylabel('$y$[m]','Interpreter','latex','FontSize',15);
-
-figure('Name','縦偏差','NumberTitle','off');
-plot(time,Z,'b-','LineWidth',2);
-yline(0,'r--','LineWidth',2);
-xlim([time(1,1) time(1,end)]);
-xlabel('t[s]','FontSize',15);
-ylabel('$z$[m]','Interpreter','latex','FontSize',15);
-
-
-
-
-% figure('Name','chi','NumberTitle','off');
-% plot(time,chi*180/pi,'b-','LineWidth',2);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$\chi$[deg.]','Interpreter','latex','FontSize',15);
-% 
-% figure('Name','*phi_r','NumberTitle','off');
-% subplot(2,1,1)
-% hold on
-% plot(time,phi*180/pi,'b-','LineWidth',1.5);
-% plot(time,phi_r*180/pi,'r--','LineWidth',1.5);
-% xlim([time(1,1) time(1,end)]);
-% ylabel('$$\phi,\phi_r$$[deg.]','Interpreter','latex','FontSize',10);
-% legend('ロール角','目標ロール角','FontSize',10,'Location','best')
-% hold off
-% subplot(2,1,2)
-% hold on
-% plot(time,p*180/pi,'b-','LineWidth',1.5);
-% plot(time,dphi_r*180/pi,'r--','LineWidth',1.5);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$$\dot{\phi},\dot{\phi}_r$$[deg./s]','Interpreter','latex','FontSize',10);
-% legend('ロール角速度','目標ロール角速度','FontSize',10,'Location','best')
-% hold off
+    
+    GammaChi(i,1) = chi;  % 保存用
+    
+    %慣性座標系→セレ・フレネ座標系の回転行列
+    SyIF0=[cos(chi_d) -sin(chi_d);
+        sin(chi_d) cos(chi_d)];
+    
+    x_e_vec(i,1:2) = (SyIF0*x_eI)'; %x,y偏差について慣性座標系からセレ・フレネ座標系xe,yeへ
+    
+    x_e_vec(i,4) = s;   % s の代入
+    x_e_vec(i,5) = xi;   % xi(s)の値を取得
+    
+    %セレ・フレネ座標系における変数x_e_vecについて分かりやすく表す．
+    x_e = x_e_vec(i,1);  % [m]
+    y_e = x_e_vec(i,2);  % [m]
+    chi_e = x_e_vec(i,3);  % [rad]
+    
+    
+    %% 微分方程式の計算
+    
+    %定数
+    g=9.80665;
+    rho=1.155; %ρ
+    Ss=0.42;
+    ww=2; 
+    d0=0.2393;     %δe^0
+    Ixx=0.1580;    
+    
+    Mc=rho*Ss*ww*V^2*(0.1659*d0+0.2578)/2;
+    
+%     %パラメータ%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     a=0.5;
+%     b=0.2; %大で即応性up.0.2良し．大きすぎると発散.0.2以上x
+%     c=10;
 %     
-% %ピッチ角とピッチ角速度
-% figure('Name','*theta_r','NumberTitle','off');
-% subplot(2,1,1)
-% hold on
-% plot(time,theta*180/pi,'b-','LineWidth',1.5);
-% plot(time,theta_r*180/pi,'r--','LineWidth',1.5);
-% xlim([time(1,1) time(1,end)]);
-% ylabel('$$\theta,\theta_r$$[deg.]','Interpreter','latex','FontSize',10);
-% legend('ピッチ角','目標ピッチ角','FontSize',10,'Location','best')
-% hold off
-% subplot(2,1,2)
-% hold on
-% plot(time,q*180/pi,'b-','LineWidth',1.5);
-% plot(time,dtheta_r*180/pi,'r--','LineWidth',1.5);
-% xlim([time(1,1) time(1,end)]);
-% xlabel('t[s]','FontSize',15);
-% ylabel('$$\dot{\theta},\dot{\theta}_r$$[deg./s]','Interpreter','latex','FontSize',10);
-% legend('ピッチ角速度','目標ピッチ角速度','FontSize',10,'Location','best')
-% hold off
+%     %ゲイン%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%     fp = 0.1;
+%     fd = 0.1;
+%% param      
+      a = 40;
+      b = 0.8;
+      c = 0;
+      
+      fp = 1.7;
+      fd = 0.15;
+    
+    %% 目標ロール角の計算
+    %目標ロール角の計算
+    phi_r(i,1) = atan((V_g(i,1)/(a*g))*(b*(y_e+a*chi_e)+V_g(i,1)*sin(chi_e)-V_g(i,1)*kappa*x_e*cos(chi_e)+a*dchi_d(i,1)-c*kappa*x_e^2));
+    
+    
+    %% 目標ロール角にLPF
+    Tp = 0.4;
+    if i == 1
+        phi_r_f(i,1) = phi_r(i,1);
+        D_phi_r_f(i,1) = 0;
+    else
+        D_phi_r_f(i,1) = (1/Tp)*(phi_r(i,1) - phi_r_f(i-1,1));
+        phi_r_f(i,1) = D_phi_r_f(i,1)*dt + phi_r_f(i-1,1);
+    end
+    
+    %（LPFなしの目標ロール角速度）
+    if i == 1
+        dphi_r(i,1) = 0;
+    else
+        dphi_r(i,1) = (phi_r(i,1)-phi_r(i-1,1))/dt;
+    end 
+    %% エルロン入力の計算
+    
+    %delta_a(i,1) = -fp*(phi(i,1)-phi_r_f(i,1))-fd*(p(i,1) - D_phi_r_f(i,1));
+    
+    %（LPFなしのエルロン入力）
+    delta_a(i,1) = -fp*(phi(i,1)-phi_r(i,1))-fd*(p(i,1) - dphi_r(i,1));
+
+    %delta_a_x(i,1) = -fp*(phi(i,1)-phi_r(i,1))-fd*(p(i,1) - dphi_r(i,1));
+
+        
+    % エルロン入力の上限下限値を設定
+    if delta_a(i,1)>=20*pi/180
+        delta_a(i,1)=20*pi/180;
+    elseif delta_a(i,1)<=-20*pi/180
+        delta_a(i,1)=-20*pi/180;
+    end
+    
+%     % エルロン入力の上限下限値を設定
+%     if delta_a_x(i,1)>=20*pi/180
+%         delta_a_x(i,1)=20*pi/180;
+%     elseif delta_a_x(i,1)<=-20*pi/180
+%         delta_a_x(i,1)=-20*pi/180;
+%     end
+    
+    %モデル式
+    dot_s = c*x_e +V_g(i,1)*cos(chi_e);
+    
+%     dx = V_g(i,1)*cos(chi);
+%     dy = V_g(i,1)*sin(chi);
+%     dchi = -g*tan(phi(i,1))/V_g(i,1);
+     
+    dx_e = V_g(i,1)*cos(chi_e)-dot_s*(1-kappa*y_e);    %1
+    dy_e = V_g(i,1)*sin(chi_e)-dot_s*kappa*x_e;        %2
+    dchi_e = -g*tan(phi(i,1))/V_g(i,1) + dchi_d(i,1);       %3
+    
+    
+    dphi = p(i,1);                                     %4
+    dp = Mc*delta_a(i,1)/Ixx;                          %5
+    
+    %%
+%      % 墜落判定: 横滑り角によって判定
+%     error(i,1) = wrapToPi(abs(chi - psi));  % 横滑り角 [rad]
+%     error(i,1) = error(i,1)*180/pi;  % 横滑り角 [deg]
+%     if error(i,1) > 88
+%         disp('ERROR!! 墜落!!')
+%            % 風の設定によっては航路角とヨー角の差が90度を超えてしまう．
+%            % 現実的にはありえないため，墜落したものと扱う．
+%     end
+    
+    dx_e_vec(i,:) = [dx_e;dy_e;dchi_e;dot_s;0];  % 状態変数の速度
+    
+    
+    %いるか-------
+    % セレ・フレネ座標系と慣性座標系の間の角速度の変換
+    dchi = - dchi_e + dchi_d(i,1) ;  % 航路角速度 [rad/s]
+    GammaChi(i,2) = dchi;   % 保存用
+    dpsi = V_g(i,1)*dchi / (V*cos(chi-psi));  % ヨー角速度 [rad/s] 
+    
+    % キネマティクス
+    dx = V*cos(psi) + Wx;
+    dy = -V*sin(psi) + Wy;
+    
+    dX_I(i,1:4) = [dx;dy;dpsi;dot_s];
+    
+    % 慣性座標系における位置・姿勢の更新（オイラー法による数値積分）
+    X_I(i+1,1) = X_I(i,1) + dx*dt;  % 位置 x [m]の更新
+    X_I(i+1,2) = X_I(i,2) + dy*dt;  % 位置 y [m]の更新
+    X_I(i+1,3) = X_I(i,3) + dpsi*dt;  % ヨー角 psi [rad]の更新
+    while (X_I(i+1,3) < -pi || X_I(i+1,3) >= pi) % 0 <= psi < 2*pi の否定
+        if (X_I(i+1,3) > pi)
+            X_I(i+1,3) = X_I(i+1,3) - 2*pi;
+        elseif (X_I(i+1,3) < -pi)
+            X_I(i+1,3) = X_I(i+1,3) + 2*pi;
+        end
+    end
+    
+    X_I(i+1,4) = X_I(i,4) + dot_s*dt;  % 経路長 s [m]の更新
+    
+    phi(i+1,1) = phi(i,1) + dphi*dt;
+    
+    if phi(i+1,1) > 70*pi/180
+        phi(i+1,1) = 70*pi/180;
+    elseif phi(i+1,1) < -70*pi/180
+        phi(i+1,1) = -70*pi/180;
+    end
+    
+    p(i+1,1) =p(i,1) + dp*dt;
+    
+    if p(i+1,1) > 100*pi/180
+        p(i+1,1) = 100*pi/180;
+    elseif p(i+1,1) < -100*pi/180
+        p(i+1,1) = -100*pi/180;
+    end
+    
+    
+    
+    Cxi(i+1,:) = [s + dot_s*dt, dot_s, t, dt, s, F(i,6), F(i,7)];   % xi 計算用の変数保存
+    
+    
+end
+%% plot
+
+% % % % % 無駄なデータを消去 % % % % %
+X_I(end,:) = [];
+phi(end,:) = [];
+p(end,:) = [];
+
+% 図を保存するかどうか -------------
+SAVE = 0;
+
+%シミュレーション番号
+ex_num='yotuba';
+% 図の保存先フォルダ ---------------------------
+%path_save = "C:\Users\";
+% フォントサイズ -------------------------------
+FSize = 15;  % 候補：10, 15
+
+
+
+%% 飛行軌跡（x-y平面）
+figure
+set(gca,'XDir','reverse')
+set(gca,'YDir','reverse')
+grid on
+hold on
+
+p1 = plot(F(:,1),F(:,2),'g-','linewidth',4);  % 目標経路
+p2 = plot(X_I(1,1),X_I(1,2),'mo','linewidth',6);  % 初期位置
+p3 = plot(X_I(end,1),X_I(end,2),'bo','linewidth',4);  % 最終位置
+p4 = plot(X_I(:,1),X_I(:,2),'b','linewidth',2);  % 飛行経路
+axis equal
+%('目標経路と飛行経路')
+legend([p2, p4, p1],'初期位置','飛行経路','目標経路','Location','best','Fontsize',12)
+xlabel('x[m]')
+ylabel('y[m]')
+ax = gca;
+ax.FontSize = 15;
+
+az = 180;
+el = 90;
+view(az, el)
+hold off
+
+if SAVE == 1
+    saveas(gcf,fullfile(path_save,['kiseki_s',ex_num]) ,'epsc')
+end
+
+%% 状態変数の時間変化
+figure;
+subplot(3,1,1)
+plot(time,x_e_vec(:,1))
+grid on
+hold on
+%title('状態変数の時間変化')
+ylabel('x_e [m]')
+ax = gca;
+ax.FontSize = 12;
+
+subplot(3,1,2)
+plot(time,x_e_vec(:,2))
+grid on
+hold on
+ylabel('y_e [m]')
+ax = gca;
+ax.FontSize = 12;
+
+subplot(3,1,3)
+plot(time,x_e_vec(:,3)*180/pi)
+grid on
+hold on
+ylabel('\chi_e [deg]')
+xlabel('time [s]')
+hold off
+ax = gca;
+ax.FontSize = 12;
+
+if SAVE == 1
+    saveas(gcf,fullfile(path_save,['F_s',ex_num]) ,'epsc')
+end
+
+%% e
+e=x_e_vec(:,2)+a*x_e_vec(:,3);
+
+figure;
+plot(time,e)
+grid on
+hold on
+%title('e')
+xlabel('time [s]')
+ylabel('e')
+ax = gca;
+ax.FontSize = 15;
+
+if SAVE == 1
+    saveas(gcf,fullfile(path_save,['e_s',ex_num]) ,'epsc')
+end
+
+
+%% エルロン入力
+
+figure;
+plot(time,delta_a*180/pi)
+grid on
+hold on
+%plot(time,delta_a_x*180/pi)
+%title('エルロン入力')
+xlabel('time [s]')
+ylabel('\delta_a')
+%legend('$\delta_a$','Interpreter','latex')
+%legend('$\delta_a$(LPF)','$\delta_a$','Interpreter','latex')
+%ylim([-20 20]);
+ax = gca;
+ax.FontSize = 12;
+
+if SAVE == 1
+    saveas(gcf,fullfile(path_save,['aile_s',ex_num]) ,'epsc')
+end
+
+
+%% 慣性座標位置，姿勢
+figure;
+subplot(3,1,1)
+plot(time,X_I(:,1))
+grid on
+hold on
+%title('慣性座標位置，姿勢の時間変化')
+xlabel('time [s]')
+ylabel('x [m]')
+ax = gca;
+ax.FontSize = 12;
+
+subplot(3,1,2)
+plot(time,X_I(:,2))
+grid on
+hold on
+ylabel('y [m]')
+ax = gca;
+ax.FontSize = 12;
+
+subplot(3,1,3)
+plot(time,unwrap(X_I(:,3))*180/pi)  % ヨー角 [deg]
+grid on
+hold on
+plot(time,unwrap(GammaChi(:,1)*180/pi),'r')  % 航路角 [deg]
+legend('\psi','\chi', 'Location', 'best','Fontsize',12)
+xlabel('time [s]')
+ylabel('\psi [deg]')
+
+if SAVE == 1
+    saveas(gcf,fullfile(path_save,['I_s',ex_num]) ,'epsc')
+end
+
+%% ロール角と目標ロール角
+figure;
+plot(time,phi(:,1)*180/pi)
+grid on
+hold on
+plot(time,phi_r(:,1)*180/pi)
+%plot(time,phi_r_f(:,1)*180/pi)
+%title('ロール角と目標ロール角')
+xlabel('time [s]')
+ylabel('$\phi$ , $\phi_r$[degree]','Interpreter','latex')
+legend('$\phi$','$\phi_r$','Interpreter','latex','FontSize',20)
+ax = gca;
+ax.FontSize = 12;
+
+
+if SAVE == 1
+    saveas(gcf,fullfile(path_save,['roll_s',ex_num]) ,'epsc')
+end
+
+%% ロール角速度と目標ロール角速度
+figure;
+plot(time,p(:,1)*180/pi)
+grid on
+hold on
+plot(time,dphi_r*180/pi)
+%plot(time,D_phi_r_f*180/pi)
+
+%title('ロール角速度と目標ロール角速度')
+xlabel('time [s]')
+ylabel('$\dot{\phi}$, $\dot{\phi_r}$[degree]','Interpreter','latex')
+legend('$\dot{\phi}$', '$\dot{\phi_r}$','Interpreter','latex','FontSize',20)
+ax = gca;
+ax.FontSize = 12;
+
+
+if SAVE == 1
+    saveas(gcf,fullfile(path_save,['droll_s',ex_num]) ,'epsc')
+end
+
+
+%% 対地速度
+figure;
+grid on
+hold on
+plot(time,V_g)
+%title('対地速度')
+ylabel('V_g [m/s]')
+xlabel('time [s]')
+ax = gca;
+ax.FontSize = 15;
+
+if SAVE == 1
+    saveas(gcf,fullfile(path_save,['vg_s',ex_num]) ,'epsc')
+end
+
+%% 目標航路角速度
+
+figure;
+subplot(2,1,1)
+plot(time,F(:,3)*180/pi)
+grid on
+hold on
+ylabel('$$\chi_d$$','Interpreter','latex')
+ax = gca;
+ax.FontSize = 12;
+
+subplot(2,1,2)
+plot(time,F(:,4)*180/pi)
+grid on
+hold on
+%plot(time,dchi_d_f(:,1))
+ylabel('$$\dot{\chi_d}$$','Interpreter','latex')
+ax = gca;
+ax.FontSize = 12;
+
+
+if SAVE == 1
+    saveas(gcf,fullfile(path_save,['chi_d_s',ex_num]) ,'epsc')
+end
+
+%% κ,ξ,s
+
+figure;
+subplot(3,1,1)
+plot(time,F(:,5))
+grid on
+hold on
+ylabel('$$\kappa$$','Interpreter','latex')
+ax = gca;
+ax.FontSize = 12;
+
+subplot(3,1,2)
+plot(time,F(:,6))
+grid on
+hold on
+ylabel('$$\xi$$','Interpreter','latex')
+ax = gca;
+ax.FontSize = 12;
+
+subplot(3,1,3)
+plot(time,X_I(:,4))
+grid on
+hold on
+ylabel('$$s$$','Interpreter','latex')
+ax = gca;
+ax.FontSize = 12;
+
+if SAVE == 1
+    saveas(gcf,fullfile(path_save,['kappa_zeta_s_s',ex_num]) ,'epsc')
+end
+
+%% dot_s
+figure;
+plot(time,dx_e_vec(:,4))
+grid on
+hold on
+ylabel('$$\dot{s}$$','Interpreter','latex')
+ax = gca;
+ax.FontSize = 12;
+
+if SAVE == 1
+    saveas(gcf,fullfile(path_save,['ds_s',ex_num]) ,'epsc')
+end
+
+%% アニメーション準備
+if anime_ON == 1
+    SS = SS*0.1;
+elseif anime_ON == 2
+    SS = SS*0.2;
+end
+
+%% アニメーション
+end_time = time(end);
+time = time';
+
+% 速度調整
+Xanime_n = [X_I(:,1:2),ZV,ZV,X_I(:,3:4),ZV,F(:,1:2),ZV];
+
+for n = 1:10
+    Xanime(:,n) = interp1(time,Xanime_n(:,n),0:SS:end_time);
+end
+t_3(:,1) = interp1(time,time,0:SS:end_time);
+% データ範囲
+min_X = min([Xanime_n(:,1);Xanime_n(:,8)]);
+min_Y = min([Xanime_n(:,2);Xanime_n(:,9)]);
+min_Z = -10;
+max_X = max([Xanime_n(:,1);Xanime_n(:,8)]);
+max_Y = max([Xanime_n(:,2);Xanime_n(:,9)]);
+max_Z = 10;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%アニメーション生成
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+scrsz = get(groot,'ScreenSize');
+figure('Position',[scrsz(3)/2+50 100 scrsz(3)/2-100 scrsz(4)-200])
+
+if anime_ON == 0
+    plot3(F(:,1),F(:,2),ZV,'g','linewidth',2)
+    hold on
+    plot3(X_I(:,1),X_I(:,2),ZV,'b')
+end
+
+M = moviein(length(Xanime));
+for i=1:1:length(Xanime)
+    
+    if anime_ON == 2
+        subplot(2,2,1)
+    end
+    ppgX=Xanime(i,1);
+    ppgY=Xanime(i,2);
+    ppgZ=Xanime(i,3);
+    p=0;
+    q=Xanime(i,4);
+    r=Xanime(i,5);
+    Sroll=[1 0 0;
+        0 cos(p) sin(p);
+        0 -sin(p) cos(p)];
+    Spitch=[cos(q) 0 -sin(q)
+        0 1 0 ;
+        sin(q) 0 cos(q)];
+    Syaw=[cos(r) sin(r) 0;
+        -sin(r) cos(r) 0 ;
+        0 0 1];
+    S=Syaw*Spitch*Sroll;
+    PPB=S*[15;0;0];
+    
+    if anime_ON >= 1
+        plot3(Xanime(1:i,8),Xanime(1:i,9),Xanime(1:i,10),'g','linewidth',2)
+        %     moviemaker2;   % PPG をプロットする場合
+        hold on;
+        plot3(Xanime(1:i,1),Xanime(1:i,2),Xanime(1:i,3),'b')
+    end
+    
+    plot3(Xanime(i,8),Xanime(i,9),Xanime(i,10),'go','linewidth',8)
+    plot3(Xanime(i,1),Xanime(i,2),Xanime(i,3),'ro','linewidth',5)
+    
+    plot3([ppgX PPB(1)+ppgX],[ppgY PPB(2)+ppgY],[ppgZ PPB(3)+ppgZ],'r','linewidth',2)
+    V_vec(i,1) = PPB(1)+ppgX;
+    V_vec(i,2) = PPB(2)+ppgY;
+    V_vec(i,3) = PPB(3)+ppgZ;
+    
+    %     title('飛行経路')
+    %         xlabel('X[m]')
+    set( gca, 'FontName','Times','FontSize',16 );
+    xlabel( 'x[m]', 'FontName','Times','FontSize',16 );
+    ylabel('y[m]', 'FontName','Times','FontSize',16)
+    zlabel('z[m]', 'FontName','Times','FontSize',16)
+    grid on;
+    
+    view(az_a,el_a)
+    
+    % % 動画固定
+    axis equal;
+    axis([min_X-7*PPG_size,max_X+7*PPG_size,min_Y-7*PPG_size,max_Y+7*PPG_size,min_Z-7*PPG_size,max_Z+7*PPG_size]);
+    
+    if anime_ON >= 1
+        if anime_ON == 2
+            zoom(1.5)
+        end
+        hold off
+        drawnow;
+    end
+    
+    if anime_ON == 2
+        subplot(2,2,2)
+        plot3(Xanime(1:i,8),Xanime(1:i,9),Xanime(1:i,10),'g','linewidth',2)
+        hold on
+        plot3(Xanime(1:i,1),Xanime(1:i,2),Xanime(1:i,3),'b')
+        plot3(Xanime(i,8),Xanime(i,9),Xanime(i,10),'go','linewidth',8)
+        plot3(Xanime(i,1),Xanime(i,2),Xanime(i,3),'ro','linewidth',5)
+        plot3([ppgX PPB(1)+ppgX],[ppgY PPB(2)+ppgY],[ppgZ PPB(3)+ppgZ],'r','linewidth',2)
+        
+        xlabel('X[m]')
+        ylabel('Y[m]')
+        zlabel('Z[m]')
+        grid on;
+        
+        view(0,0)
+        % % 動画固定
+        axis equal;
+        axis([min_X-7*PPG_size,max_X+7*PPG_size,min_Y-7*PPG_size,max_Y+7*PPG_size,min_Z-7*PPG_size,max_Z+7*PPG_size]);
+        zoom(0.8)
+        hold off
+        drawnow;
+        
+        subplot(2,2,3)
+        plot3(Xanime(1:i,8),Xanime(1:i,9),Xanime(1:i,10),'g','linewidth',2)
+        hold on
+        plot3(Xanime(1:i,1),Xanime(1:i,2),Xanime(1:i,3),'b')
+        plot3(Xanime(i,8),Xanime(i,9),Xanime(i,10),'go','linewidth',8)
+        plot3(Xanime(i,1),Xanime(i,2),Xanime(i,3),'ro','linewidth',5)
+        plot3([ppgX PPB(1)+ppgX],[ppgY PPB(2)+ppgY],[ppgZ PPB(3)+ppgZ],'r','linewidth',2)
+        
+        xlabel('X[m]')
+        ylabel('Y[m]')
+        zlabel('Z[m]')
+        grid on;
+        
+        view(-90,0)
+        % % 動画固定
+        axis equal;
+        axis([min_X-7*PPG_size,max_X+7*PPG_size,min_Y-7*PPG_size,max_Y+7*PPG_size,min_Z-7*PPG_size,max_Z+7*PPG_size]);
+        zoom(0.8)
+        hold off
+        drawnow;
+        
+        subplot(2,2,4)
+        plot3(Xanime(1:i,8),Xanime(1:i,9),Xanime(1:i,10),'g','linewidth',2)
+        hold on
+        plot3(Xanime(1:i,1),Xanime(1:i,2),Xanime(1:i,3),'b')
+        plot3(Xanime(i,8),Xanime(i,9),Xanime(i,10),'go','linewidth',8)
+        plot3(Xanime(i,1),Xanime(i,2),Xanime(i,3),'ro','linewidth',5)
+        plot3([ppgX PPB(1)+ppgX],[ppgY PPB(2)+ppgY],[ppgZ PPB(3)+ppgZ],'r','linewidth',2)
+        
+        xlabel('X[m]')
+        ylabel('Y[m]')
+        zlabel('Z[m]')
+        grid on;
+        
+        view(0,90)
+        % % 動画固定
+        axis equal;
+        axis([min_X-7*PPG_size,max_X+7*PPG_size,min_Y-7*PPG_size,max_Y+7*PPG_size,min_Z-7*PPG_size,max_Z+7*PPG_size]);
+        zoom(0.8)
+        hold off
+        drawnow;
+    end
+end
+
+%% ２次元平面プロット
+
+if plot2D == 1
+    % xyプロット
+    figure('Position',[scrsz(3)/2+50 100 scrsz(3)/2-100 scrsz(4)-200])
+    plot(F(:,1),F(:,2),'g','linewidth',2)
+    hold on
+    plot(Xanime(:,8),Xanime(:,9),'go','linewidth',8)
+    plot(X_I(:,1),X_I(:,2),'b')
+    plot(Xanime(:,1),Xanime(:,2),'ro','linewidth',5)
+
+    for i = 1:length(V_vec)
+        plot([Xanime(i,1) V_vec(i,1)],[Xanime(i,2) V_vec(i,2)],'r','linewidth',2)
+    end
+    axis equal
+    axis([min_X-7*PPG_size,max_X+7*PPG_size,min_Y-7*PPG_size,max_Y+7*PPG_size]);
+
+    set( gca, 'FontName','Times','FontSize',16 );
+    xlabel( 'x[m]', 'FontName','Times','FontSize',16 );
+    ylabel('y[m]', 'FontName','Times','FontSize',16)
+    %zlabel('z[m]', 'FontName','Times','FontSize',16)
+    grid on;
+
+    % xzプロット
+    figure('Position',[scrsz(3)/2+50 100 scrsz(3)/2-100 scrsz(4)-200])
+    plot(F(:,1),F(:,3),'g','linewidth',2)
+    hold on
+    plot(Xanime(:,8),Xanime(:,10),'go','linewidth',8)
+    plot(X_I(:,1),X_I(:,3),'b')
+    plot(Xanime(:,1),Xanime(:,3),'ro','linewidth',5)
+
+    for i = 1:length(V_vec)
+        plot([Xanime(i,1) V_vec(i,1)],[Xanime(i,3) V_vec(i,3)],'r','linewidth',2)
+    end
+    axis equal
+    axis([min_X-7*PPG_size,max_X+7*PPG_size,min_Z-7*PPG_size,max_Z+7*PPG_size]);
+
+    set( gca, 'FontName','Times','FontSize',16 );
+    xlabel( 'x[m]', 'FontName','Times','FontSize',16 );
+    %ylabel('y[m]', 'FontName','Times','FontSize',16)
+    ylabel('z[m]', 'FontName','Times','FontSize',16)
+    grid on;
+end
