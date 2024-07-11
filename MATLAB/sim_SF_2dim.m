@@ -78,7 +78,6 @@ phi(1,1) = phi_0;
 p(1,1) = p_0;
 
 %% 計算
-
 for i = 1 : length(time)
     
     %時間を表示
