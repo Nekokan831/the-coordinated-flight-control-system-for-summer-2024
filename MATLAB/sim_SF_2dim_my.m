@@ -65,6 +65,16 @@ p_0 = 0;
 phi(1,1) = phi_0;
 p(1,1) = p_0;
 
+%定数
+g=9.80665;
+rho=1.155; %ρ
+Ss=0.42;
+ww=2; 
+d0=0.2393;     %δe^0
+Ixx=0.1580;    
+
+Mc=rho*Ss*ww*V^2*(0.1659*d0+0.2578)/2;
+
 %% 計算（シミュレーション本体）
 for i = 1 : length(time)
     
@@ -96,7 +106,7 @@ for i = 1 : length(time)
     x_eI = (X_I(i,1:2) - F(i,1:2))';
 
     %対地速度Vgの計算
-    %機体座標系{B} → 慣性座標系{I}の回転行列
+    %機体座標系{B} → 慣性座標系{I}の回転行列...?個人的な解釈は，V_aをベクトルにするための三角関数
      SyIB=[cos(psi) sin(psi);  % ヨー回転
           -sin(psi) cos(psi)];
 
@@ -106,17 +116,39 @@ for i = 1 : length(time)
     % 対地速度の大きさ（ノルム）
     V_g(i,1) = norm(V_g_vec);  % [m/s]
 
-    % 航路角χの導出χ
+    % 航路角χの導出
     chi = atan2(-V_g_vec(2),V_g_vec(1));  % [rad]
 
     %% 慣性座標系からセレ・フレネ座標系への変換
-    x_e_vec(i,3) = -chi + chi_d; %χe
-    while (x_e_vec(i,3) < -pi || x_e_vec(i,3) >= pi) % 0 <= chi_e < 2*pi の否定
+    %χeの補正
+    x_e_vec(i,3) = -chi + chi_d; %χeの導出
+                                 %chi - chi_dではない理由は，回転行列のsinの符号を揃えるため...?
+    while (x_e_vec(i,3) < -pi || x_e_vec(i,3) >= pi)  % 0 <= chi_e < 2*pi の否定
         if (x_e_vec(i,3) > pi)
             x_e_vec(i,3) = x_e_vec(i,3) - 2*pi;
         elseif (x_e_vec(i,3) < -pi)
             x_e_vec(i,3) = x_e_vec(i,3) + 2*pi;
         end
     end
+
+    GammaChi(i,1) = chi;  % 航路角χの１ステップ前の保存用
+
+    %慣性座標系{I}→セレ・フレネ座標系{F}の回転行列
+    %ここはzの座標軸を機体下向きに取っているのでsinの符号が普通の機体とは逆．発狂．
+    SyIF0=[cos(chi_d) -sin(chi_d);
+           sin(chi_d) cos(chi_d)];
+
+    %慣性座標系におけるx,y偏差を，セレ・フレネ座標系における誤差xe,yeへ座標軸回転
+    x_e_vec(i,1:2) = (SyIF0*x_eI)';
+
+    x_e_vec(i,4) = s;   % s の代入
+    x_e_vec(i,5) = xi;   % xi(s)の値を取得
+
+    %セレ・フレネ座標系における変数x_e_vecについて再定義．
+    x_e = x_e_vec(i,1);  % [m]
+    y_e = x_e_vec(i,2);  % [m]
+    chi_e = x_e_vec(i,3);  % [rad]
+
+    %% 微分方程式の計算
 
 end
