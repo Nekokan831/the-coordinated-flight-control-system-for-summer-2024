@@ -20,8 +20,6 @@ time =0:dt:t_end;
 %初期状態：慣性座標系における目標座標からの偏差
 x_eI_0 = [0,0,0*pi/180]; %x_0,y_0,psi_0 %rem
 
-phi_0 = 0;
-p_0 = 0;
 
 %UAV速度設定
 V = 12;  %対気速度[m/s]
@@ -56,3 +54,13 @@ dchi_d_f = zeros([length(time),1]);
 D_dchi_d_f = zeros([length(time),1]);
 
 delta_a_x = zeros([length(time),1]);
+
+% 初期値の代入
+X_I(1,:) = X_I_0(1:5,1)';   % 初期値の代入
+Cxi(1,:) = Cxi0;
+
+phi_0 = 0;
+p_0 = 0;
+
+phi(1,1) = phi_0;
+p(1,1) = p_0;
