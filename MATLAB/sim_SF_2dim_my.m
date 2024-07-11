@@ -149,6 +149,12 @@ for i = 1 : length(time)
     y_e = x_e_vec(i,2);  % [m]
     chi_e = x_e_vec(i,3);  % [rad]
 
-    %% 微分方程式の計算
-
+    %% パラメータ
+    a = 40;
+    b = 0.8;
+    c = 0;
+    
+    %% ゲイン
+    fp = 1.7;
+    fd = 0.15;
 end
