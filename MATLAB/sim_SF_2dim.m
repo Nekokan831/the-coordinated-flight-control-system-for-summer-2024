@@ -29,6 +29,9 @@ p_0 = 0;
 % Wx = 2*sin(2*time);
 % Wy = 2*sin(2*time);
 
+% Wx = 1;
+% Wy = 1;
+
 %UAV速度設定
 %V = 12; %対気速度[m/s]
 V = 12;
@@ -80,11 +83,12 @@ for i = 1 : length(time)
     %時間を表示
     t = i*dt
     
-    Wx = 1;
-    Wy = 1;
-
-%       Wx = 0;
-%       Wy = 0;  
+    %風の設定
+    Wx = 2*sin(2*t);
+    Wy = 2*sin(2*t);
+    
+    % Wx = 1;
+    % Wy = 1;
     
     %慣性座標系における状態の取り出し．
     xI =X_I(i,1); %位置x[m]
