@@ -100,7 +100,23 @@ for i = 1 : length(time)
      SyIB=[cos(psi) sin(psi);  % ヨー回転
           -sin(psi) cos(psi)];
 
-    % 対地速度ベクトル
+    % 対地速度ベクトル,x方向はそのままdot_x, y方向はそのままdot_yとなる
     V_g_vec = SyIB*[V_a; 0] + [Wx; Wy];  % [m/s]
+
+    % 対地速度の大きさ（ノルム）
+    V_g(i,1) = norm(V_g_vec);  % [m/s]
+
+    % 航路角χの導出χ
+    chi = atan2(-V_g_vec(2),V_g_vec(1));  % [rad]
+
+    %% 慣性座標系からセレ・フレネ座標系への変換
+    x_e_vec(i,3) = -chi + chi_d; %χe
+    while (x_e_vec(i,3) < -pi || x_e_vec(i,3) >= pi) % 0 <= chi_e < 2*pi の否定
+        if (x_e_vec(i,3) > pi)
+            x_e_vec(i,3) = x_e_vec(i,3) - 2*pi;
+        elseif (x_e_vec(i,3) < -pi)
+            x_e_vec(i,3) = x_e_vec(i,3) + 2*pi;
+        end
+    end
 
 end
