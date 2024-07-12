@@ -1,6 +1,11 @@
+%% 文字設定と初期化
+% 初期化
 clc
 clear
 close all
+
+% フォントと文字サイズの設定
+set(0,'defaultTextFontSize',15)   %初期値は 9
 
 %アニメーション設定
 anime_ON = 0;  % アニメーションの　オン・オフ 0:なし，1:ひとつ，2:いろんな角度
@@ -18,42 +23,50 @@ t_end = 100;
 time =0:dt:t_end;
 
 %初期状態：慣性座標系における目標座標からの偏差
-x_eI_0 = [0,0,0*pi/180]; %x_0,y_0,psi_0 %rem
+%{UAVの台数目}
+x_eI_0{1} = [0,0,0*pi/180]; %x_0,y_0,psi_0 %rem
+x_eI_0{2} = [0,0,0*pi/180]; %x_0,y_0,psi_0 %rem
 
 
 %UAV速度設定
 V_a = 12;  %対気速度[m/s]
 
 %初期状態の計算
-Cxi0 = [0, 0, 0, dt, 0, 0, 0]; % F_PATH へ与える入力の初期状態:s,dot_s,t,dt,s_old,xi_old,i_sar
-X_I_0 = F_PATH_FX79_r1(Cxi0)'+[x_eI_0, 0, 0, 0, 0]'; % 慣性座標系における初期状態：x_d,y_d,χ_d,dχ_d,κ,xi,i
+Cxi0{1} = [0, 0, 0, dt, 0, 0, 0]; % F_PATH へ与える入力の初期状態:s,dot_s,t,dt,s_old,xi_old,i_sar
+Cxi0{2} = [0, 0, 0, dt, 0, 0, 0]; % F_PATH へ与える入力の初期状態:s,dot_s,t,dt,s_old,xi_old,i_sar
+
+X_I_0{1} = F_PATH_FX79_r1(Cxi0{1})'+[x_eI_0{1}, 0, 0, 0, 0]'; % 慣性座標系における初期状態：x_d,y_d,χ_d,dχ_d,κ,xi,i
+X_I_0{2} = F_PATH_FX79_r1(Cxi0{2})'+[x_eI_0{2}, 0, 0, 0, 0]'; % 慣性座標系における初期状態：x_d,y_d,χ_d,dχ_d,κ,xi,i
+
 
 %事前割り当て
-x_e_vec = zeros([length(time),5]); % 誤差ダイナミクスの状態量x_eベクトル，および s, xi
-dx_e_vec = zeros([length(time),5]);% x_eベクトルの微分値
-F = zeros([length(time),7]); % 慣性座標系における"目標"座標，および曲率など
-X_I = zeros([length(time),5]); % 慣性座標位置における状態，および s
-dX_I = zeros([length(time),5]);% 慣性座標位置における状態の微分値
-V_g = zeros([length(time),1]); % 対地速度v_g
-phi = zeros([length(time),1]); % ロール角Φ
-p = zeros([length(time),1]); % ロール角速度p
-phi_r = zeros([length(time),1]); % 目標ロール角Φr
-dphi_r = zeros([length(time),1]); % ロール角速度dΦr
-delta_a = zeros([length(time),1]); % エルロン入力
-error = zeros([length(time),1]); % ヨー角と飛行経路角の差分の観測用
-GammaChi = zeros([length(time),2]);
-Cxi = zeros([length(time),7]);   % F_PATHへの入力の計算用
-ZV = zeros([length(time),1]); % 0ベクトル
+for i = 1:2
+    x_e_vec{i} = zeros([length(time),5]); % 誤差ダイナミクスの状態量x_eベクトル，および s, xi
+    dx_e_vec{i} = zeros([length(time),5]);% x_eベクトルの微分値
+    F{i} = zeros([length(time),7]); % 慣性座標系における"目標"座標，および曲率など
+    X_I{i} = zeros([length(time),5]); % 慣性座標位置における状態，および s
+    dX_I{i} = zeros([length(time),5]);% 慣性座標位置における状態の微分値
+    V_g{i} = zeros([length(time),1]); % 対地速度v_g
+    phi{i} = zeros([length(time),1]); % ロール角Φ
+    p{i} = zeros([length(time),1]); % ロール角速度p
+    phi_r{i} = zeros([length(time),1]); % 目標ロール角Φr
+    dphi_r{i} = zeros([length(time),1]); % ロール角速度dΦr
+    delta_a{i} = zeros([length(time),1]); % エルロン入力
+    error{i} = zeros([length(time),1]); % ヨー角と飛行経路角の差分の観測用
+    GammaChi{i} = zeros([length(time),2]);
+    Cxi{i} = zeros([length(time),7]);   % F_PATHへの入力の計算用
+    ZV{i} = zeros([length(time),1]); % 0ベクトル
 
-phi_r_f= zeros([length(time),1]);
-D_phi_r_f = zeros([length(time),1]);
+    phi_r_f{i}= zeros([length(time),1]);
+    D_phi_r_f{i} = zeros([length(time),1]);
 
-dchi_d = zeros([length(time),1]);
+    dchi_d{i} = zeros([length(time),1]);
 
-dchi_d_f = zeros([length(time),1]);
-D_dchi_d_f = zeros([length(time),1]);
+    dchi_d_f{i} = zeros([length(time),1]);
+    D_dchi_d_f{i} = zeros([length(time),1]);
 
-delta_a_x = zeros([length(time),1]);
+    delta_a_x{i} = zeros([length(time),1]);
+end
 
 % 初期値の代入
 X_I(1,:) = X_I_0(1:5,1)';   % 初期値の代入
