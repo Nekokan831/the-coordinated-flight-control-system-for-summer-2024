@@ -4,6 +4,6 @@
 協調制御の実装
 
 /MATLAB内
-sim_SF_2dimについてはA_Practical_Design_Approach_for_Complex_Path_Tracking_Control
+sim_6DoF.mについてはA_Practical_Design_Approach_for_Complex_Path_Tracking_Control
 （https://ieeexplore.ieee.org/document/10214418）
 をもとに作成
