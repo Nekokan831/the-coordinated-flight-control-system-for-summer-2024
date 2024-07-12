@@ -165,4 +165,13 @@ for i = 1 : length(time)
     %A_Practical_Design_Approach_for_Complex_Path_Tracking_Controlの式26
     phi_r(i,1) = atan((V_g(i,1)/(a*g))*(b*(y_e+a*chi_e)+V_g(i,1)*sin(chi_e)-V_g(i,1)*kappa*x_e*cos(chi_e)+a*dchi_d(i,1)-c*kappa*x_e^2));
     
+    %% 目標ロール角にLPF
+    Tp = 0.4;
+    if i == 1
+        phi_r_f(i,1) = phi_r(i,1);
+        D_phi_r_f(i,1) = 0;
+    else
+        D_phi_r_f(i,1) = (1/Tp)*(phi_r(i,1) - phi_r_f(i-1,1));
+        phi_r_f(i,1) = D_phi_r_f(i,1)*dt + phi_r_f(i-1,1);
+    end
 end
