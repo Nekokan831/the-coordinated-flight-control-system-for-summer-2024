@@ -6,7 +6,7 @@
 mainから個人研究用にブランチ
 
 /MATLAB
-sim_SF_2dim -> 単体セレ・フレネ
+sim_SF_2dim -> 単体セレ・フレネ, 上位フォルダ内sim_6DoFと中身同じ
 sim_SF_2dim_remake -> sim_SF_2dimを読みやすくコメントを追加，二重計算の個所などを解消．
 たびたびアップデートあり
 
