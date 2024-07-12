@@ -231,7 +231,7 @@ for i = 1 : length(time)
      
     dx_e = V_g(i,1)*cos(chi_e)-dot_s*(1-kappa*y_e);    %1
     dy_e = V_g(i,1)*sin(chi_e)-dot_s*kappa*x_e;        %2
-    dchi_e = -g*tan(phi(i,1))/V_g(i,1) + dchi_d(i,1);       %3
+    dchi_e = -g*tan(phi(i,1))/V_g(i,1) + dchi_d(i,1);  %3
     
     
     dphi = p(i,1);                                     %4
@@ -257,8 +257,11 @@ for i = 1 : length(time)
     dpsi = V_g(i,1)*dchi / (V*cos(chi-psi));  % ヨー角速度 [rad/s] 
     
     % キネマティクス
-    dx = V*cos(psi) + Wx;
-    dy = -V*sin(psi) + Wy;
+    dx = V_g_vec(1,1);
+    dy = V_g_vec(2,1);
+    % dx = V*cos(psi) + Wx
+    % dy = -V*sin(psi) + Wy
+
     
     dX_I(i,1:4) = [dx;dy;dpsi;dot_s];
     
