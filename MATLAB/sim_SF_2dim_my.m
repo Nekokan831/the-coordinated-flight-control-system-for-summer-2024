@@ -165,7 +165,7 @@ for i = 1 : length(time)
     %A_Practical_Design_Approach_for_Complex_Path_Tracking_Controlの式26
     phi_r(i,1) = atan((V_g(i,1)/(a*g))*(b*(y_e+a*chi_e)+V_g(i,1)*sin(chi_e)-V_g(i,1)*kappa*x_e*cos(chi_e)+a*dchi_d(i,1)-c*kappa*x_e^2));
     
-    %% 目標ロール角にLPF
+    %% 目標ロール角にLPF , phi_r_fにはD_phi_rの積分値っぽいものが入ってる
     Tp = 0.4;
     if i == 1
         phi_r_f(i,1) = phi_r(i,1);
@@ -174,4 +174,16 @@ for i = 1 : length(time)
         D_phi_r_f(i,1) = (1/Tp)*(phi_r(i,1) - phi_r_f(i-1,1));
         phi_r_f(i,1) = D_phi_r_f(i,1)*dt + phi_r_f(i-1,1);
     end
+
+    %（LPFなしの目標ロール角速度）, dphi_rはphi_rの疑似微分値が入ってる
+    if i == 1
+        dphi_r(i,1) = 0;
+    else
+        dphi_r(i,1) = (phi_r(i,1)-phi_r(i-1,1))/dt;
+    end
+
+    %% エルロン入力の計算
+
+    %（LPFなしのエルロン入力）
+    delta_a(i,1) = -fp*(phi(i,1)-phi_r(i,1))-fd*(p(i,1) - dphi_r(i,1));
 end
