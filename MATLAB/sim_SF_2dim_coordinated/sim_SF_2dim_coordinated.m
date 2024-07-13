@@ -36,7 +36,7 @@ Cxi0{1} = [0, 0, 0, dt, 0, 0, 0]; % F_PATH へ与える入力の初期状態:s,d
 Cxi0{2} = [0, 0, 0, dt, 0, 0, 0]; % F_PATH へ与える入力の初期状態:s,dot_s,t,dt,s_old,xi_old,i_sar
 
 X_I_0{1} = F_PATH_FX79_r1(Cxi0{1})'+[x_eI_0{1}, 0, 0, 0, 0]'; % 慣性座標系における初期状態：x_d,y_d,χ_d,dχ_d,κ,xi,i
-X_I_0{2} = F_PATH_FX79_r1(Cxi0{2})'+[x_eI_0{2}, 0, 0, 0, 0]'; % 慣性座標系における初期状態：x_d,y_d,χ_d,dχ_d,κ,xi,i
+X_I_0{2} = F_PATH_FX79_r2(Cxi0{2})'+[x_eI_0{2}, 0, 0, 0, 0]'; % 慣性座標系における初期状態：x_d,y_d,χ_d,dχ_d,κ,xi,i
 
 
 %事前割り当て
@@ -113,8 +113,8 @@ for i = 1 : length(time)
     t = i*dt
     
     %風の設定
-    Wx = 3*sin(2*t);
-    Wy = 3*sin(2*t);
+    Wx = 1*sin(2*t);
+    Wy = 1*sin(2*t);
     
     % Wx = 1;
     % Wy = 1;
@@ -126,7 +126,12 @@ for i = 1 : length(time)
         psi{iu}=X_I{iu}(i,3); %ヨー角[rad]
         s{iu} = X_I{iu}(i,4); %経路長s [m]
     %参照経路情報(現時点の経路情報)
-        F{iu}(i,:) = F_PATH_FX79_r1(Cxi{iu}(i,:))';
+        if iu == 1
+            F{iu}(i,:) = F_PATH_FX79_r1(Cxi{iu}(i,:))';
+        elseif iu == 2
+            F{iu}(i,:) = F_PATH_FX79_r2(Cxi{iu}(i,:))';
+        end
+        
 
     %参照経路情報(現時点の経路情報)の取り出し
         chi_d{iu} = F{iu}(i,3);  % 目標航路角[rad]
@@ -346,234 +351,234 @@ for i=1:2
         saveas(gcf,fullfile(path_save,['kiseki_s',ex_num]) ,'epsc')
     end
 
-    %% 状態変数の時間変化
-    figure;
-    subplot(3,1,1)
-    plot(time,x_e_vec{i}(:,1))
-    grid on
-    hold on
-    %title('状態変数の時間変化')
-    ylabel('x_e [m]')
-    ax = gca;
-    ax.FontSize = 12;
+    % %% 状態変数の時間変化
+    % figure;
+    % subplot(3,1,1)
+    % plot(time,x_e_vec{i}(:,1))
+    % grid on
+    % hold on
+    % %title('状態変数の時間変化')
+    % ylabel('x_e [m]')
+    % ax = gca;
+    % ax.FontSize = 12;
 
-    subplot(3,1,2)
-    plot(time,x_e_vec{i}(:,2))
-    grid on
-    hold on
-    ylabel('y_e [m]')
-    ax = gca;
-    ax.FontSize = 12;
+    % subplot(3,1,2)
+    % plot(time,x_e_vec{i}(:,2))
+    % grid on
+    % hold on
+    % ylabel('y_e [m]')
+    % ax = gca;
+    % ax.FontSize = 12;
 
-    subplot(3,1,3)
-    plot(time,x_e_vec{i}(:,3)*180/pi)
-    grid on
-    hold on
-    ylabel('\chi_e [deg]')
-    xlabel('time [s]')
-    hold off
-    ax = gca;
-    ax.FontSize = 12;
+    % subplot(3,1,3)
+    % plot(time,x_e_vec{i}(:,3)*180/pi)
+    % grid on
+    % hold on
+    % ylabel('\chi_e [deg]')
+    % xlabel('time [s]')
+    % hold off
+    % ax = gca;
+    % ax.FontSize = 12;
 
-    if SAVE == 1
-        saveas(gcf,fullfile(path_save,['F_s',ex_num]) ,'epsc')
-    end
+    % if SAVE == 1
+    %     saveas(gcf,fullfile(path_save,['F_s',ex_num]) ,'epsc')
+    % end
 
-    %% e
-    e=x_e_vec{i}(:,2)+a*x_e_vec{i}(:,3);
+    % %% e
+    % e=x_e_vec{i}(:,2)+a*x_e_vec{i}(:,3);
 
-    figure;
-    plot(time,e)
-    grid on
-    hold on
-    %title('e')
-    xlabel('time [s]')
-    ylabel('e')
-    ax = gca;
-    ax.FontSize = 15;
+    % figure;
+    % plot(time,e)
+    % grid on
+    % hold on
+    % %title('e')
+    % xlabel('time [s]')
+    % ylabel('e')
+    % ax = gca;
+    % ax.FontSize = 15;
 
-    if SAVE == 1
-        saveas(gcf,fullfile(path_save,['e_s',ex_num]) ,'epsc')
-    end
-
-
-    %% エルロン入力
-
-    figure;
-    plot(time,delta_a{i}*180/pi)
-    grid on
-    hold on
-    %plot(time,delta_a_x*180/pi)
-    %title('エルロン入力')
-    xlabel('time [s]')
-    ylabel('\delta_a')
-    %legend('$\delta_a$','Interpreter','latex')
-    %legend('$\delta_a$(LPF)','$\delta_a$','Interpreter','latex')
-    %ylim([-20 20]);
-    ax = gca;
-    ax.FontSize = 12;
-
-    if SAVE == 1
-        saveas(gcf,fullfile(path_save,['aile_s',ex_num]) ,'epsc')
-    end
+    % if SAVE == 1
+    %     saveas(gcf,fullfile(path_save,['e_s',ex_num]) ,'epsc')
+    % end
 
 
-    %% 慣性座標位置，姿勢
-    figure;
-    subplot(3,1,1)
-    plot(time,X_I{i}(:,1))
-    grid on
-    hold on
-    %title('慣性座標位置，姿勢の時間変化')
-    xlabel('time [s]')
-    ylabel('x [m]')
-    ax = gca;
-    ax.FontSize = 12;
+    % %% エルロン入力
 
-    subplot(3,1,2)
-    plot(time,X_I{i}(:,2))
-    grid on
-    hold on
-    ylabel('y [m]')
-    ax = gca;
-    ax.FontSize = 12;
+    % figure;
+    % plot(time,delta_a{i}*180/pi)
+    % grid on
+    % hold on
+    % %plot(time,delta_a_x*180/pi)
+    % %title('エルロン入力')
+    % xlabel('time [s]')
+    % ylabel('\delta_a')
+    % %legend('$\delta_a$','Interpreter','latex')
+    % %legend('$\delta_a$(LPF)','$\delta_a$','Interpreter','latex')
+    % %ylim([-20 20]);
+    % ax = gca;
+    % ax.FontSize = 12;
 
-    subplot(3,1,3)
-    plot(time,unwrap(X_I{i}(:,3))*180/pi)  % ヨー角 [deg]
-    grid on
-    hold on
-    plot(time,unwrap(GammaChi{i}(:,1)*180/pi),'r')  % 航路角 [deg]
-    legend('\psi','\chi', 'Location', 'best','Fontsize',12)
-    xlabel('time [s]')
-    ylabel('\psi [deg]')
-
-    if SAVE == 1
-        saveas(gcf,fullfile(path_save,['I_s',ex_num]) ,'epsc')
-    end
-
-    %% ロール角と目標ロール角
-    figure;
-    plot(time,phi{i}(:,1)*180/pi)
-    grid on
-    hold on
-    plot(time,phi_r{i}(:,1)*180/pi)
-    %plot(time,phi_r_f(:,1)*180/pi)
-    %title('ロール角と目標ロール角')
-    xlabel('time [s]')
-    ylabel('$\phi$ , $\phi_r$[degree]','Interpreter','latex')
-    legend('$\phi$','$\phi_r$','Interpreter','latex','FontSize',20)
-    ax = gca;
-    ax.FontSize = 12;
+    % if SAVE == 1
+    %     saveas(gcf,fullfile(path_save,['aile_s',ex_num]) ,'epsc')
+    % end
 
 
-    if SAVE == 1
-        saveas(gcf,fullfile(path_save,['roll_s',ex_num]) ,'epsc')
-    end
+    % %% 慣性座標位置，姿勢
+    % figure;
+    % subplot(3,1,1)
+    % plot(time,X_I{i}(:,1))
+    % grid on
+    % hold on
+    % %title('慣性座標位置，姿勢の時間変化')
+    % xlabel('time [s]')
+    % ylabel('x [m]')
+    % ax = gca;
+    % ax.FontSize = 12;
 
-    %% ロール角速度と目標ロール角速度
-    figure;
-    plot(time,p{i}(:,1)*180/pi)
-    grid on
-    hold on
-    plot(time,dphi_r{i}*180/pi)
-    %plot(time,D_phi_r_f*180/pi)
+    % subplot(3,1,2)
+    % plot(time,X_I{i}(:,2))
+    % grid on
+    % hold on
+    % ylabel('y [m]')
+    % ax = gca;
+    % ax.FontSize = 12;
 
-    %title('ロール角速度と目標ロール角速度')
-    xlabel('time [s]')
-    ylabel('$\dot{\phi}$, $\dot{\phi_r}$[degree]','Interpreter','latex')
-    legend('$\dot{\phi}$', '$\dot{\phi_r}$','Interpreter','latex','FontSize',20)
-    ax = gca;
-    ax.FontSize = 12;
+    % subplot(3,1,3)
+    % plot(time,unwrap(X_I{i}(:,3))*180/pi)  % ヨー角 [deg]
+    % grid on
+    % hold on
+    % plot(time,unwrap(GammaChi{i}(:,1)*180/pi),'r')  % 航路角 [deg]
+    % legend('\psi','\chi', 'Location', 'best','Fontsize',12)
+    % xlabel('time [s]')
+    % ylabel('\psi [deg]')
 
+    % if SAVE == 1
+    %     saveas(gcf,fullfile(path_save,['I_s',ex_num]) ,'epsc')
+    % end
 
-    if SAVE == 1
-        saveas(gcf,fullfile(path_save,['droll_s',ex_num]) ,'epsc')
-    end
-
-
-    %% 対地速度
-    figure;
-    grid on
-    hold on
-    plot(time,V_g{i})
-    %title('対地速度')
-    ylabel('V_g [m/s]')
-    xlabel('time [s]')
-    ax = gca;
-    ax.FontSize = 15;
-
-    if SAVE == 1
-        saveas(gcf,fullfile(path_save,['vg_s',ex_num]) ,'epsc')
-    end
-
-    %% 目標航路角速度
-
-    figure;
-    subplot(2,1,1)
-    plot(time,F{i}(:,3)*180/pi)
-    grid on
-    hold on
-    ylabel('$$\chi_d$$','Interpreter','latex')
-    ax = gca;
-    ax.FontSize = 12;
-
-    subplot(2,1,2)
-    plot(time,F{i}(:,4)*180/pi)
-    grid on
-    hold on
-    %plot(time,dchi_d_f(:,1))
-    ylabel('$$\dot{\chi_d}$$','Interpreter','latex')
-    ax = gca;
-    ax.FontSize = 12;
+    % %% ロール角と目標ロール角
+    % figure;
+    % plot(time,phi{i}(:,1)*180/pi)
+    % grid on
+    % hold on
+    % plot(time,phi_r{i}(:,1)*180/pi)
+    % %plot(time,phi_r_f(:,1)*180/pi)
+    % %title('ロール角と目標ロール角')
+    % xlabel('time [s]')
+    % ylabel('$\phi$ , $\phi_r$[degree]','Interpreter','latex')
+    % legend('$\phi$','$\phi_r$','Interpreter','latex','FontSize',20)
+    % ax = gca;
+    % ax.FontSize = 12;
 
 
-    if SAVE == 1
-        saveas(gcf,fullfile(path_save,['chi_d_s',ex_num]) ,'epsc')
-    end
+    % if SAVE == 1
+    %     saveas(gcf,fullfile(path_save,['roll_s',ex_num]) ,'epsc')
+    % end
 
-    %% κ,ξ,s
+    % %% ロール角速度と目標ロール角速度
+    % figure;
+    % plot(time,p{i}(:,1)*180/pi)
+    % grid on
+    % hold on
+    % plot(time,dphi_r{i}*180/pi)
+    % %plot(time,D_phi_r_f*180/pi)
 
-    figure;
-    subplot(3,1,1)
-    plot(time,F{i}(:,5))
-    grid on
-    hold on
-    ylabel('$$\kappa$$','Interpreter','latex')
-    ax = gca;
-    ax.FontSize = 12;
+    % %title('ロール角速度と目標ロール角速度')
+    % xlabel('time [s]')
+    % ylabel('$\dot{\phi}$, $\dot{\phi_r}$[degree]','Interpreter','latex')
+    % legend('$\dot{\phi}$', '$\dot{\phi_r}$','Interpreter','latex','FontSize',20)
+    % ax = gca;
+    % ax.FontSize = 12;
 
-    subplot(3,1,2)
-    plot(time,F{i}(:,6))
-    grid on
-    hold on
-    ylabel('$$\xi$$','Interpreter','latex')
-    ax = gca;
-    ax.FontSize = 12;
 
-    subplot(3,1,3)
-    plot(time,X_I{i}(:,4))
-    grid on
-    hold on
-    ylabel('$$s$$','Interpreter','latex')
-    ax = gca;
-    ax.FontSize = 12;
+    % if SAVE == 1
+    %     saveas(gcf,fullfile(path_save,['droll_s',ex_num]) ,'epsc')
+    % end
 
-    if SAVE == 1
-        saveas(gcf,fullfile(path_save,['kappa_zeta_s_s',ex_num]) ,'epsc')
-    end
 
-    %% dot_s
-    figure;
-    plot(time,dx_e_vec{i}(:,4))
-    grid on
-    hold on
-    ylabel('$$\dot{s}$$','Interpreter','latex')
-    ax = gca;
-    ax.FontSize = 12;
+    % %% 対地速度
+    % figure;
+    % grid on
+    % hold on
+    % plot(time,V_g{i})
+    % %title('対地速度')
+    % ylabel('V_g [m/s]')
+    % xlabel('time [s]')
+    % ax = gca;
+    % ax.FontSize = 15;
 
-    if SAVE == 1
-        saveas(gcf,fullfile(path_save,['ds_s',ex_num]) ,'epsc')
-    end
+    % if SAVE == 1
+    %     saveas(gcf,fullfile(path_save,['vg_s',ex_num]) ,'epsc')
+    % end
+
+    % %% 目標航路角速度
+
+    % figure;
+    % subplot(2,1,1)
+    % plot(time,F{i}(:,3)*180/pi)
+    % grid on
+    % hold on
+    % ylabel('$$\chi_d$$','Interpreter','latex')
+    % ax = gca;
+    % ax.FontSize = 12;
+
+    % subplot(2,1,2)
+    % plot(time,F{i}(:,4)*180/pi)
+    % grid on
+    % hold on
+    % %plot(time,dchi_d_f(:,1))
+    % ylabel('$$\dot{\chi_d}$$','Interpreter','latex')
+    % ax = gca;
+    % ax.FontSize = 12;
+
+
+    % if SAVE == 1
+    %     saveas(gcf,fullfile(path_save,['chi_d_s',ex_num]) ,'epsc')
+    % end
+
+    % %%κ,ξ,s
+
+    % figure;
+    % subplot(3,1,1)
+    % plot(time,F{i}(:,5))
+    % grid on
+    % hold on
+    % ylabel('$$\kappa$$','Interpreter','latex')
+    % ax = gca;
+    % ax.FontSize = 12;
+
+    % subplot(3,1,2)
+    % plot(time,F{i}(:,6))
+    % grid on
+    % hold on
+    % ylabel('$$\xi$$','Interpreter','latex')
+    % ax = gca;
+    % ax.FontSize = 12;
+
+    % subplot(3,1,3)
+    % plot(time,X_I{i}(:,4))
+    % grid on
+    % hold on
+    % ylabel('$$s$$','Interpreter','latex')
+    % ax = gca;
+    % ax.FontSize = 12;
+
+    % if SAVE == 1
+    %     saveas(gcf,fullfile(path_save,['kappa_zeta_s_s',ex_num]) ,'epsc')
+    % end
+
+    % %% dot_s
+    % figure;
+    % plot(time,dx_e_vec{i}(:,4))
+    % grid on
+    % hold on
+    % ylabel('$$\dot{s}$$','Interpreter','latex')
+    % ax = gca;
+    % ax.FontSize = 12;
+
+    % if SAVE == 1
+    %     saveas(gcf,fullfile(path_save,['ds_s',ex_num]) ,'epsc')
+    % end
 
     %% アニメーション準備
     if anime_ON == 1
@@ -587,148 +592,184 @@ for i=1:2
     time = time';
 
     % 速度調整
-    Xanime_n = [X_I{i}(:,1:2),ZV{i},ZV{i},X_I{i}(:,3:4),ZV{i},F{i}(:,1:2),ZV{i}];
+    Xanime_n{i} = [X_I{i}(:,1:2),ZV{i},ZV{i},X_I{i}(:,3:4),ZV{i},F{i}(:,1:2),ZV{i}];
 
     for n = 1:10
-        Xanime(:,n) = interp1(time,Xanime_n(:,n),0:SS:end_time);
+        Xanime{i}(:,n) = interp1(time,Xanime_n{i}(:,n),0:SS:end_time);
     end
     t_3(:,1) = interp1(time,time,0:SS:end_time);
     % データ範囲
-    min_X = min([Xanime_n(:,1);Xanime_n(:,8)]);
-    min_Y = min([Xanime_n(:,2);Xanime_n(:,9)]);
-    min_Z = -10;
-    max_X = max([Xanime_n(:,1);Xanime_n(:,8)]);
-    max_Y = max([Xanime_n(:,2);Xanime_n(:,9)]);
-    max_Z = 10;
-
+    min_X{i} = min([Xanime_n{i}(:,1);Xanime_n{i}(:,8)]);
+    min_Y{i} = min([Xanime_n{i}(:,2);Xanime_n{i}(:,9)]);
+    min_Z{i} = -10;
+    max_X{i} = max([Xanime_n{i}(:,1);Xanime_n{i}(:,8)]);
+    max_Y{i} = max([Xanime_n{i}(:,2);Xanime_n{i}(:,9)]);
+    max_Z{i} = 10;
+    M{i} = moviein(length(Xanime{i}));
 end
 
-% M = moviein(length(Xanime));
-% for i=1:1:length(Xanime)
-    
-%     if anime_ON == 2
-%         subplot(2,2,1)
-%     end
-%     ppgX=Xanime(i,1);
-%     ppgY=Xanime(i,2);
-%     ppgZ=Xanime(i,3);
-%     p=0;
-%     q=Xanime(i,4);
-%     r=Xanime(i,5);
-%     Sroll=[1 0 0;
-%         0 cos(p) sin(p);
-%         0 -sin(p) cos(p)];
-%     Spitch=[cos(q) 0 -sin(q)
-%         0 1 0 ;
-%         sin(q) 0 cos(q)];
-%     Syaw=[cos(r) sin(r) 0;
-%         -sin(r) cos(r) 0 ;
-%         0 0 1];
-%     S=Syaw*Spitch*Sroll;
-%     PPB=S*[15;0;0];
-    
-%     if anime_ON >= 1
-%         plot3(Xanime(1:i,8),Xanime(1:i,9),Xanime(1:i,10),'g','linewidth',2)
-%         %     moviemaker2;   % PPG をプロットする場合
-%         hold on;
-%         plot3(Xanime(1:i,1),Xanime(1:i,2),Xanime(1:i,3),'b')
-%     end
-    
-%     plot3(Xanime(i,8),Xanime(i,9),Xanime(i,10),'go','linewidth',8)
-%     plot3(Xanime(i,1),Xanime(i,2),Xanime(i,3),'ro','linewidth',5)
-    
-%     plot3([ppgX PPB(1)+ppgX],[ppgY PPB(2)+ppgY],[ppgZ PPB(3)+ppgZ],'r','linewidth',2)
-%     V_vec(i,1) = PPB(1)+ppgX;
-%     V_vec(i,2) = PPB(2)+ppgY;
-%     V_vec(i,3) = PPB(3)+ppgZ;
-    
-%     %     title('飛行経路')
-%     %         xlabel('X[m]')
-%     set( gca, 'FontName','Times','FontSize',16 );
-%     xlabel( 'x[m]', 'FontName','Times','FontSize',16 );
-%     ylabel('y[m]', 'FontName','Times','FontSize',16)
-%     zlabel('z[m]', 'FontName','Times','FontSize',16)
-%     grid on;
-    
-%     view(az_a,el_a)
-    
-%     % % 動画固定
-%     axis equal;
-%     axis([min_X-7*PPG_size,max_X+7*PPG_size,min_Y-7*PPG_size,max_Y+7*PPG_size,min_Z-7*PPG_size,max_Z+7*PPG_size]);
-    
-%     if anime_ON >= 1
-%         if anime_ON == 2
-%             zoom(1.5)
-%         end
-%         hold off
-%         drawnow;
-%     end
-    
-%     if anime_ON == 2
-%         subplot(2,2,2)
-%         plot3(Xanime(1:i,8),Xanime(1:i,9),Xanime(1:i,10),'g','linewidth',2)
-%         hold on
-%         plot3(Xanime(1:i,1),Xanime(1:i,2),Xanime(1:i,3),'b')
-%         plot3(Xanime(i,8),Xanime(i,9),Xanime(i,10),'go','linewidth',8)
-%         plot3(Xanime(i,1),Xanime(i,2),Xanime(i,3),'ro','linewidth',5)
-%         plot3([ppgX PPB(1)+ppgX],[ppgY PPB(2)+ppgY],[ppgZ PPB(3)+ppgZ],'r','linewidth',2)
+
+for iu = 1:2
+    figure;
+    hold on;
+    for i = 1:1:length(Xanime{iu})
+        if anime_ON == 2
+            
+            subplot(2,2,1);
+        end
         
-%         xlabel('X[m]')
-%         ylabel('Y[m]')
-%         zlabel('Z[m]')
-%         grid on;
+        ppgX = Xanime{iu}(i,1);
+        ppgY = Xanime{iu}(i,2);
+        ppgZ = Xanime{iu}(i,3);
+        p = 0;
+        q = Xanime{iu}(i,4);
+        r = Xanime{iu}(i,5);
+        Sroll = [1 0 0;
+                 0 cos(p) sin(p);
+                 0 -sin(p) cos(p)];
+        Spitch = [cos(q) 0 -sin(q);
+                  0 1 0;
+                  sin(q) 0 cos(q)];
+        Syaw = [cos(r) sin(r) 0;
+                -sin(r) cos(r) 0;
+                0 0 1];
+        S = Syaw * Spitch * Sroll;
+        PPB = S * [15;0;0];
         
-%         view(0,0)
-%         % % 動画固定
-%         axis equal;
-%         axis([min_X-7*PPG_size,max_X+7*PPG_size,min_Y-7*PPG_size,max_Y+7*PPG_size,min_Z-7*PPG_size,max_Z+7*PPG_size]);
-%         zoom(0.8)
-%         hold off
-%         drawnow;
+        if anime_ON >= 1
+            plot3(Xanime{iu}(1:i,8), Xanime{iu}(1:i,9), Xanime{iu}(1:i,10), 'g', 'linewidth', 2)
+            hold on;
+            plot3(Xanime{iu}(1:i,1), Xanime{iu}(1:i,2), Xanime{iu}(1:i,3), 'b')
+            hold on;
+        end
         
-%         subplot(2,2,3)
-%         plot3(Xanime(1:i,8),Xanime(1:i,9),Xanime(1:i,10),'g','linewidth',2)
-%         hold on
-%         plot3(Xanime(1:i,1),Xanime(1:i,2),Xanime(1:i,3),'b')
-%         plot3(Xanime(i,8),Xanime(i,9),Xanime(i,10),'go','linewidth',8)
-%         plot3(Xanime(i,1),Xanime(i,2),Xanime(i,3),'ro','linewidth',5)
-%         plot3([ppgX PPB(1)+ppgX],[ppgY PPB(2)+ppgY],[ppgZ PPB(3)+ppgZ],'r','linewidth',2)
+        % if anime_ON == 2
+        %     subplot(2,2,1);
+        % else
+        %     figure
+        % end
         
-%         xlabel('X[m]')
-%         ylabel('Y[m]')
-%         zlabel('Z[m]')
-%         grid on;
+        plot3(Xanime{iu}(i,8), Xanime{iu}(i,9), Xanime{iu}(i,10), 'go', 'linewidth', 8)
+        hold on;
+        plot3(Xanime{iu}(i,1), Xanime{iu}(i,2), Xanime{iu}(i,3), 'ro', 'linewidth', 5)
+        hold on;
+        plot3([ppgX PPB(1)+ppgX], [ppgY PPB(2)+ppgY], [ppgZ PPB(3)+ppgZ], 'r', 'linewidth', 2)
+        hold on;
+        V_vec{iu}(i,1) = PPB(1) + ppgX;
+        V_vec{iu}(i,2) = PPB(2) + ppgY;
+        V_vec{iu}(i,3) = PPB(3) + ppgZ;
         
-%         view(-90,0)
-%         % % 動画固定
-%         axis equal;
-%         axis([min_X-7*PPG_size,max_X+7*PPG_size,min_Y-7*PPG_size,max_Y+7*PPG_size,min_Z-7*PPG_size,max_Z+7*PPG_size]);
-%         zoom(0.8)
-%         hold off
-%         drawnow;
+        xlabel('x[m]', 'FontName', 'Times', 'FontSize', 16);
+        ylabel('y[m]', 'FontName', 'Times', 'FontSize', 16);
+        zlabel('z[m]', 'FontName', 'Times', 'FontSize', 16);
+        set(gca, 'FontName', 'Times', 'FontSize', 16);
+        grid on;
+        view(az_a, el_a);
+        axis equal;
+        axis([min_X{iu} - 7 * PPG_size, max_X{iu} + 7 * PPG_size, min_Y{iu} - 7 * PPG_size, max_Y{iu} + 7 * PPG_size, min_Z{iu} - 7 * PPG_size, max_Z{iu} + 7 * PPG_size]);
+        hold on;
+        if anime_ON == 2
+            subplot(2,2,2)
+            plot3(Xanime{iu}(1:i,8), Xanime{iu}(1:i,9), Xanime{iu}(1:i,10), 'g', 'linewidth', 2)
+            hold on;
+            plot3(Xanime{iu}(1:i,1), Xanime{iu}(1:i,2), Xanime{iu}(1:i,3), 'b')
+            plot3(Xanime{iu}(i,8), Xanime{iu}(i,9), Xanime{iu}(i,10), 'go', 'linewidth', 8)
+            plot3(Xanime{iu}(i,1), Xanime{iu}(i,2), Xanime{iu}(i,3), 'ro', 'linewidth', 5)
+            plot3([ppgX PPB(1) + ppgX], [ppgY PPB(2) + ppgY], [ppgZ PPB(3) + ppgZ], 'r', 'linewidth', 2)
+            xlabel('x[m]', 'FontName', 'Times', 'FontSize', 16);
+            ylabel('y[m]', 'FontName', 'Times', 'FontSize', 16);
+            zlabel('z[m]', 'FontName', 'Times', 'FontSize', 16);
+            set(gca, 'FontName', 'Times', 'FontSize', 16);
+            grid on;
+            view(-90, 0);
+            axis equal;
+            axis([min_X{iu} - 7 * PPG_size, max_X{iu} + 7 * PPG_size, min_Y{iu} - 7 * PPG_size, max_Y{iu} + 7 * PPG_size, min_Z{iu} - 7 * PPG_size, max_Z{iu} + 7 * PPG_size]);
+    
+            subplot(2,2,3)
+            plot3(Xanime{iu}(1:i,8), Xanime{iu}(1:i,9), Xanime{iu}(1:i,10), 'g', 'linewidth', 2)
+            hold on;
+            plot3(Xanime{iu}(1:i,1), Xanime{iu}(1:i,2), Xanime{iu}(1:i,3), 'b')
+            plot3(Xanime{iu}(i,8), Xanime{iu}(i,9), Xanime{iu}(i,10), 'go', 'linewidth', 8)
+            plot3(Xanime{iu}(i,1), Xanime{iu}(i,2), Xanime{iu}(i,3), 'ro', 'linewidth', 5)
+            plot3([ppgX PPB(1) + ppgX], [ppgY PPB(2) + ppgY], [ppgZ PPB(3) + ppgZ], 'r', 'linewidth', 2)
+            xlabel('x[m]', 'FontName', 'Times', 'FontSize', 16);
+            ylabel('y[m]', 'FontName', 'Times', 'FontSize', 16);
+            zlabel('z[m]', 'FontName', 'Times', 'FontSize', 16);
+            set(gca, 'FontName', 'Times', 'FontSize', 16);
+            grid on;
+            view(0, 90);
+            axis equal;
+            axis([min_X{iu} - 7 * PPG_size, max_X{iu} + 7 * PPG_size, min_Y{iu} - 7 * PPG_size, max_Y{iu} + 7 * PPG_size, min_Z{iu} - 7 * PPG_size, max_Z{iu} + 7 * PPG_size]);
+        end
+        hold on;
+        drawnow;
         
-%         subplot(2,2,4)
-%         plot3(Xanime(1:i,8),Xanime(1:i,9),Xanime(1:i,10),'g','linewidth',2)
-%         hold on
-%         plot3(Xanime(1:i,1),Xanime(1:i,2),Xanime(1:i,3),'b')
-%         plot3(Xanime(i,8),Xanime(i,9),Xanime(i,10),'go','linewidth',8)
-%         plot3(Xanime(i,1),Xanime(i,2),Xanime(i,3),'ro','linewidth',5)
-%         plot3([ppgX PPB(1)+ppgX],[ppgY PPB(2)+ppgY],[ppgZ PPB(3)+ppgZ],'r','linewidth',2)
-        
-%         xlabel('X[m]')
-%         ylabel('Y[m]')
-%         zlabel('Z[m]')
-%         grid on;
-        
-%         view(0,90)
-%         % % 動画固定
-%         axis equal;
-%         axis([min_X-7*PPG_size,max_X+7*PPG_size,min_Y-7*PPG_size,max_Y+7*PPG_size,min_Z-7*PPG_size,max_Z+7*PPG_size]);
-%         zoom(0.8)
-%         hold off
-%         drawnow;
-%     end
-% end
+        if anime_ON == 2
+            subplot(2,2,2)
+            plot3(Xanime{iu}(1:i,8),Xanime{iu}(1:i,9),Xanime{iu}(1:i,10),'g','linewidth',2)
+            hold on
+            plot3(Xanime{iu}(1:i,1),Xanime{iu}(1:i,2),Xanime{iu}(1:i,3),'b')
+            plot3(Xanime{iu}(i,8),Xanime{iu}(i,9),Xanime{iu}(i,10),'go','linewidth',8)
+            plot3(Xanime{iu}(i,1),Xanime{iu}(i,2),Xanime{iu}(i,3),'ro','linewidth',5)
+            plot3([ppgX PPB(1)+ppgX],[ppgY PPB(2)+ppgY],[ppgZ{iu} PPB(3)+ppgZ],'r','linewidth',2)
+            
+            xlabel('X[m]')
+            ylabel('Y[m]')
+            zlabel('Z[m]')
+            grid on;
+            
+            view(0,0)
+            % % 動画固定
+            axis equal;
+            axis([min_X{iu}-7*PPG_size,max_X{iu}+7*PPG_size,min_Y{iu}-7*PPG_size,max_Y{iu}+7*PPG_size,min_Z{iu}-7*PPG_size,max_Z{iu}+7*PPG_size]);
+            zoom(0.8)
+            hold off
+            drawnow;
+            
+            subplot(2,2,3)
+            plot3(Xanime{iu}(1:i,8),Xanime{iu}(1:i,9),Xanime{iu}(1:i,10),'g','linewidth',2)
+            hold on
+            plot3(Xanime{iu}(1:i,1),Xanime{iu}(1:i,2),Xanime{iu}(1:i,3),'b')
+            plot3(Xanime{iu}(i,8),Xanime{iu}(i,9),Xanime{iu}(i,10),'go','linewidth',8)
+            plot3(Xanime{iu}(i,1),Xanime{iu}(i,2),Xanime{iu}(i,3),'ro','linewidth',5)
+            plot3([ppgX PPB(1)+ppgX],[ppgY PPB(2)+ppgY],[ppgZ PPB(3)+ppgZ],'r','linewidth',2)
+            
+            xlabel('X[m]')
+            ylabel('Y[m]')
+            zlabel('Z[m]')
+            grid on;
+            
+            view(-90,0)
+            % % 動画固定
+            axis equal;
+            axis([min_X{iu}-7*PPG_size,max_X{iu}+7*PPG_size,min_Y{iu}-7*PPG_size,max_Y{iu}+7*PPG_size,min_Z{iu}-7*PPG_size,max_Z{iu}+7*PPG_size]);
+            zoom(0.8)
+            hold off
+            drawnow;
+            
+            subplot(2,2,4)
+            plot3(Xanime{iu}(1:i,8),Xanime{iu}(1:i,9),Xanime{iu}(1:i,10),'g','linewidth',2)
+            hold on
+            plot3(Xanime{iu}(1:i,1),Xanime{iu}(1:i,2),Xanime{iu}(1:i,3),'b')
+            plot3(Xanime{iu}(i,8),Xanime{iu}(i,9),Xanime{iu}(i,10),'go','linewidth',8)
+            plot3(Xanime{iu}(i,1),Xanime{iu}(i,2),Xanime{iu}(i,3),'ro','linewidth',5)
+            plot3([ppgX PPB(1)+ppgX],[ppgY PPB(2)+ppgY],[ppgZ PPB(3)+ppgZ],'r','linewidth',2)
+            
+            xlabel('X[m]')
+            ylabel('Y[m]')
+            zlabel('Z[m]')
+            grid on;
+            
+            view(0,90)
+            % % 動画固定
+            axis equal;
+            axis([min_X{iu}-7*PPG_size,max_X{iu}+7*PPG_size,min_Y{iu}-7*PPG_size,max_Y{iu}+7*PPG_size,min_Z{iu}-7*PPG_size,max_Z{iu}+7*PPG_size]);
+            zoom(0.8)
+            hold off
+            drawnow;
+        end
+    end
+end
 
 % %% ２次元平面プロット
 
