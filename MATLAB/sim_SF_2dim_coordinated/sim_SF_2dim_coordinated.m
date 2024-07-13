@@ -40,32 +40,32 @@ X_I_0{2} = F_PATH_FX79_r1(Cxi0{2})'+[x_eI_0{2}, 0, 0, 0, 0]'; % 慣性座標系�
 
 
 %事前割り当て
-for i = 1:2
-    x_e_vec{i} = zeros([length(time),5]); % 誤差ダイナミクスの状態量x_eベクトル，および s, xi
-    dx_e_vec{i} = zeros([length(time),5]);% x_eベクトルの微分値
-    F{i} = zeros([length(time),7]); % 慣性座標系における"目標"座標，および曲率など
-    X_I{i} = zeros([length(time),5]); % 慣性座標位置における状態，および s
-    dX_I{i} = zeros([length(time),5]);% 慣性座標位置における状態の微分値
-    V_g{i} = zeros([length(time),1]); % 対地速度v_g
-    phi{i} = zeros([length(time),1]); % ロール角Φ
-    p{i} = zeros([length(time),1]); % ロール角速度p
-    phi_r{i} = zeros([length(time),1]); % 目標ロール角Φr
-    dphi_r{i} = zeros([length(time),1]); % ロール角速度dΦr
-    delta_a{i} = zeros([length(time),1]); % エルロン入力
-    error{i} = zeros([length(time),1]); % ヨー角と飛行経路角の差分の観測用
-    GammaChi{i} = zeros([length(time),2]);
-    Cxi{i} = zeros([length(time),7]);   % F_PATHへの入力の計算用
-    ZV{i} = zeros([length(time),1]); % 0ベクトル
+for iu = 1:2
+    x_e_vec{iu} = zeros([length(time),5]); % 誤差ダイナミクスの状態量x_eベクトル，および s, xi
+    dx_e_vec{iu} = zeros([length(time),5]);% x_eベクトルの微分値
+    F{iu} = zeros([length(time),7]); % 慣性座標系における"目標"座標，および曲率など
+    X_I{iu} = zeros([length(time),5]); % 慣性座標位置における状態，および s
+    dX_I{iu} = zeros([length(time),5]);% 慣性座標位置における状態の微分値
+    V_g{iu} = zeros([length(time),1]); % 対地速度v_g
+    phi{iu} = zeros([length(time),1]); % ロール角Φ
+    p{iu} = zeros([length(time),1]); % ロール角速度p
+    phi_r{iu} = zeros([length(time),1]); % 目標ロール角Φr
+    dphi_r{iu} = zeros([length(time),1]); % ロール角速度dΦr
+    delta_a{iu} = zeros([length(time),1]); % エルロン入力
+    error{iu} = zeros([length(time),1]); % ヨー角と飛行経路角の差分の観測用
+    GammaChi{iu} = zeros([length(time),2]);
+    Cxi{iu} = zeros([length(time),7]);   % F_PATHへの入力の計算用
+    ZV{iu} = zeros([length(time),1]); % 0ベクトル
 
-    phi_r_f{i}= zeros([length(time),1]);
-    D_phi_r_f{i} = zeros([length(time),1]);
+    phi_r_f{iu}= zeros([length(time),1]);
+    D_phi_r_f{iu} = zeros([length(time),1]);
 
-    dchi_d{i} = zeros([length(time),1]);
+    dchi_d{iu} = zeros([length(time),1]);
 
-    dchi_d_f{i} = zeros([length(time),1]);
-    D_dchi_d_f{i} = zeros([length(time),1]);
+    dchi_d_f{iu} = zeros([length(time),1]);
+    D_dchi_d_f{iu} = zeros([length(time),1]);
 
-    delta_a_x{i} = zeros([length(time),1]);
+    delta_a_x{iu} = zeros([length(time),1]);
 end
 
 % 初期値の代入
@@ -81,8 +81,9 @@ p_0{1} = 0;
 p_0{2} = 0;
 
 phi{1}(1,1) = phi_0{1};
-phi{1}(1,1) = phi_0{1};
-p(1,1) = p_0;
+phi{2}(1,1) = phi_0{2};
+p{1}(1,1) = p_0{1};
+p{2}(1,1) = p_0{2};
 
 %定数
 g=9.80665;
@@ -119,18 +120,25 @@ for i = 1 : length(time)
     % Wy = 1;
 
     %慣性座標系における状態の取り出し．
-    xI =X_I(i,1); %位置x[m]
-    yI =X_I(i,2); %位置y[m]
-    psi=X_I(i,3); %ヨー角[rad]
-    s = X_I(i,4); %経路長s [m]
+    for iu = 1:2
+        xI{iu} =X_I{iu}(i,1); %位置x[m]
+        yI{iu} =X_I{iu}(i,2); %位置y[m]
+        psi{iu}=X_I{iu}(i,3); %ヨー角[rad]
+        s{iu} = X_I{iu}(i,4); %経路長s [m]
+    end
+
 
     %参照経路情報(現時点の経路情報)
-    F(i,:) = F_PATH_FX79_r1(Cxi(i,:))';
+    for iu = 1:2
+        F{iu}(i,:) = F_PATH_FX79_r1(Cxi{iu}(i,:))';
+    end
 
     %参照経路情報(現時点の経路情報)の取り出し
-    chi_d = F(i,3);  % 目標航路角[rad]
-    kappa = F(i,5);  % 曲率[rad/m]
-    xi = F(i,6);     % 媒介変数 xi（ζ）
+    for iu = 1:2
+        chi_d{iu} = F{iu}(i,3);  % 目標航路角[rad]
+        kappa{iu} = F{iu}(i,5);  % 曲率[rad/m]
+        xi{iu} = F{iu}(i,6);     % 媒介変数 xi（ζ）
+    end
 
     %慣性座標系におけるx,yの目標との偏差
     x_eI = (X_I(i,1:2) - F(i,1:2))';
