@@ -145,7 +145,7 @@ for i = 1 : length(time)
         % と思ったけど，後でdx，dyはなぜか再定義されてる．．．？
         V_g_vec{iu} = SyIB{iu}*[V_a; 0] + [Wx; Wy];  % [m/s]
         % 対地速度の大きさ（ノルム）
-        V_g{iu}(i,1) = norm{iu}(V_g_vec{iu});  % [m/s]
+        V_g{iu}(i,1) = norm(V_g_vec{iu});  % [mV_g_vec/s]
 
         % 航路角χの導出
         chi{iu} = atan2(-V_g_vec{iu}(2),V_g_vec{iu}(1));  % [rad]
@@ -204,35 +204,33 @@ for i = 1 : length(time)
             dphi_r{iu}(i,1) = (phi_r{iu}(i,1)-phi_r{iu}(i-1,1))/dt;
         end
 
+        %% エルロン入力の計算
+        %（LPFなしのエルロン入力）
+        % Pは
+        % A_Practical_Design_Approach_for_Complex_Path_Tracking_Controlの式16
+        % で出てくる．phi（ロール）の微分値(角速度)がp，あとで定義式出てくる．
+        % このコントローラ自体は式26で出てくる．
+        delta_a{iu}(i,1) = -fp*(phi{iu}(i,1)-phi_r{iu}(i,1))-fd*(p{iu}(i,1) - dphi_r{iu}(i,1));
+
+        % エルロン入力の上限下限値を設定
+        if delta_a{iu}(i,1)>=20*pi/180
+            delta_a{iu}(i,1)=20*pi/180;
+        elseif delta_a{iu}(i,1)<=-20*pi/180
+            delta_a{iu}(i,1)=-20*pi/180;
+        end
+
+        %モデル式
+        % A_Practical_Design_Approach_for_Complex_Path_Tracking_Controlの式18
+        % c*x_eはコントローラ入力．高橋さんはu(t)と広く置いてる．
+        % 微分値についてはdot_sみたいな記述とdx_eみたいな記述が多くてちょっと見づらい，統一したい
+        dot_s{iu} = c*x_e{iu} +V_g{iu}(i,1)*cos(chi_e{iu});
+
+        %セレフレネ系の誤差ダイナミクス
+        % A_Practical_Design_Approach_for_Complex_Path_Tracking_Controlの式12~14
+        dx_e{iu} = V_g{iu}(i,1)*cos(chi_e{iu})-dot_s{iu}*(1-kappa{iu}*y_e{iu}); 
+        dy_e{iu} = V_g{iu}(i,1)*sin(chi_e{iu})-dot_s{iu}*kappa{iu}*x_e{iu};
+        dchi_e{iu} = -g*tan(phi{iu}(i,1))/V_g{iu}(i,1) + dchi_d{iu}(i,1);
     end
-
-    %% エルロン入力の計算
-
-    %（LPFなしのエルロン入力）
-    % Pは
-    % A_Practical_Design_Approach_for_Complex_Path_Tracking_Controlの式16
-    % で出てくる．phi（ロール）の微分値(角速度)がp，あとで定義式出てくる．
-    % このコントローラ自体は式26で出てくる．
-    delta_a(i,1) = -fp*(phi(i,1)-phi_r(i,1))-fd*(p(i,1) - dphi_r(i,1));
-
-    % エルロン入力の上限下限値を設定
-    if delta_a(i,1)>=20*pi/180
-        delta_a(i,1)=20*pi/180;
-    elseif delta_a(i,1)<=-20*pi/180
-        delta_a(i,1)=-20*pi/180;
-    end
-
-    %モデル式
-    % A_Practical_Design_Approach_for_Complex_Path_Tracking_Controlの式18
-    % c*x_eはコントローラ入力．高橋さんはu(t)と広く置いてる．
-    % 微分値についてはdot_sみたいな記述とdx_eみたいな記述が多くてちょっと見づらい，統一したい
-    dot_s = c*x_e +V_g(i,1)*cos(chi_e);
-
-    %セレフレネ系の誤差ダイナミクス
-    % A_Practical_Design_Approach_for_Complex_Path_Tracking_Controlの式12~14
-    dx_e = V_g(i,1)*cos(chi_e)-dot_s*(1-kappa*y_e); 
-    dy_e = V_g(i,1)*sin(chi_e)-dot_s*kappa*x_e;
-    dchi_e = -g*tan(phi(i,1))/V_g(i,1) + dchi_d(i,1);
 
     % 詳細なパラメータについて定義してるだけ
     dphi = p(i,1);                                     %4
