@@ -145,66 +145,65 @@ for i = 1 : length(time)
         % と思ったけど，後でdx，dyはなぜか再定義されてる．．．？
         V_g_vec{iu} = SyIB{iu}*[V_a; 0] + [Wx; Wy];  % [m/s]
         % 対地速度の大きさ（ノルム）
-        V_g{iu}(i,1) = norm{iu}(V_g_vec);  % [m/s]
+        V_g{iu}(i,1) = norm{iu}(V_g_vec{iu});  % [m/s]
 
         % 航路角χの導出
         chi{iu} = atan2(-V_g_vec{iu}(2),V_g_vec{iu}(1));  % [rad]
-    end
 
-
-
-    %% 慣性座標系からセレ・フレネ座標系への変換
-    %χeの補正
-    x_e_vec(i,3) = -chi + chi_d; %χeの導出
-                                 %chi - chi_dではない理由は，回転行列のsinの符号を揃えるため...?
-    while (x_e_vec(i,3) < -pi || x_e_vec(i,3) >= pi)  % 0 <= chi_e < 2*pi の否定
-        if (x_e_vec(i,3) > pi)
-            x_e_vec(i,3) = x_e_vec(i,3) - 2*pi;
-        elseif (x_e_vec(i,3) < -pi)
-            x_e_vec(i,3) = x_e_vec(i,3) + 2*pi;
+        
+        %% 慣性座標系からセレ・フレネ座標系への変換
+        %χeの補正
+        x_e_vec{iu}(i,3) = -chi{iu} + chi_d{iu}; %χeの導出
+                                    %chi - chi_dではない理由は，回転行列のsinの符号を揃えるため...?
+        while (x_e_vec{iu}(i,3) < -pi || x_e_vec{iu}(i,3) >= pi)  % 0 <= chi_e < 2*pi の否定
+            if (x_e_vec{iu}(i,3) > pi)
+                x_e_vec{iu}(i,3) = x_e_vec(i,3) - 2*pi;
+            elseif (x_e_vec{iu}(i,3) < -pi)
+                x_e_vec{iu}(i,3) = x_e_vec{iu}(i,3) + 2*pi;
+            end
         end
-    end
 
-    GammaChi(i,1) = chi;  % 航路角χの１ステップ前の保存用
+        GammaChi{iu}(i,1) = chi{iu};  % 航路角χの１ステップ前の保存用
 
-    %慣性座標系{I}→セレ・フレネ座標系{F}の回転行列
-    %ここはzの座標軸を機体下向きに取っているのでsinの符号が普通の機体とは逆．発狂．
-    SyIF0=[cos(chi_d) -sin(chi_d);
-           sin(chi_d) cos(chi_d)];
+        %慣性座標系{I}→セレ・フレネ座標系{F}の回転行列
+        %ここはzの座標軸を機体下向きに取っているのでsinの符号が普通の機体とは逆．発狂．
+        SyIF0{iu}=[cos(chi_d{iu}) -sin(chi_d{iu});
+                   sin(chi_d{iu}) cos(chi_d{iu})];
 
-    %慣性座標系におけるx,y偏差を，セレ・フレネ座標系における誤差xe,yeへ座標軸回転
-    x_e_vec(i,1:2) = (SyIF0*x_eI)';
+        %慣性座標系におけるx,y偏差を，セレ・フレネ座標系における誤差xe,yeへ座標軸回転
+        x_e_vec{iu}(i,1:2) = (SyIF0{iu}*x_eI{iu})';
+        x_e_vec{iu}(i,4) = s{iu};   % s の代入
+        x_e_vec{iu}(i,5) = xi{iu};   % xi(s)の値を取得
 
-    x_e_vec(i,4) = s;   % s の代入
-    x_e_vec(i,5) = xi;   % xi(s)の値を取得
+        %セレ・フレネ座標系における変数x_e_vecについて再定義．
+        x_e{iu} = x_e_vec{iu}(i,1);  % [m]
+        y_e{iu} = x_e_vec{iu}(i,2);  % [m]
+        chi_e{iu} = x_e_vec{iu}(i,3);  % [rad]
 
-    %セレ・フレネ座標系における変数x_e_vecについて再定義．
-    x_e = x_e_vec(i,1);  % [m]
-    y_e = x_e_vec(i,2);  % [m]
-    chi_e = x_e_vec(i,3);  % [rad]
+        %% 目標ロール角の計算
+        %目標ロール角の計算
+        %A_Practical_Design_Approach_for_Complex_Path_Tracking_Controlの式26
+        phi_r{iu}(i,1) = atan((V_g{iu}(i,1)/(a*g))*(b*(y_e{iu}+a*chi_e{iu})+V_g{iu}(i,1)*sin(chi_e{iu})-V_g{iu}(i,1)*kappa{iu}*x_e{iu}*cos(chi_e{iu})+a*dchi_d{iu}(i,1)-c*kappa{iu}*x_e{iu}^2));
+        
+        
+        %% 目標ロール角にLPF , phi_r_fにはD_phi_rの積分値っぽいものが入ってる
+        Tp = 0.4;
+        if i == 1
+            phi_r_f{iu}(i,1) = phi_r{iu}(i,1);
+            D_phi_r_f{iu}(i,1) = 0;
+        else
+            D_phi_r_f{iu}(i,1) = (1/Tp)*(phi_r{iu}(i,1) - phi_r_f{iu}(i-1,1));
+            phi_r_f{iu}(i,1) = D_phi_r_f{iu}(i,1)*dt + phi_r_f{iu}(i-1,1);
+        end
 
+        
+        %（LPFなしの目標ロール角速度）, dphi_rはphi_rの疑似微分値が入ってる
+        if i == 1
+            dphi_r{iu}(i,1) = 0;
+        else
+            dphi_r{iu}(i,1) = (phi_r{iu}(i,1)-phi_r{iu}(i-1,1))/dt;
+        end
 
-
-    %% 目標ロール角の計算
-    %目標ロール角の計算
-    %A_Practical_Design_Approach_for_Complex_Path_Tracking_Controlの式26
-    phi_r(i,1) = atan((V_g(i,1)/(a*g))*(b*(y_e+a*chi_e)+V_g(i,1)*sin(chi_e)-V_g(i,1)*kappa*x_e*cos(chi_e)+a*dchi_d(i,1)-c*kappa*x_e^2));
-    
-    %% 目標ロール角にLPF , phi_r_fにはD_phi_rの積分値っぽいものが入ってる
-    Tp = 0.4;
-    if i == 1
-        phi_r_f(i,1) = phi_r(i,1);
-        D_phi_r_f(i,1) = 0;
-    else
-        D_phi_r_f(i,1) = (1/Tp)*(phi_r(i,1) - phi_r_f(i-1,1));
-        phi_r_f(i,1) = D_phi_r_f(i,1)*dt + phi_r_f(i-1,1);
-    end
-
-    %（LPFなしの目標ロール角速度）, dphi_rはphi_rの疑似微分値が入ってる
-    if i == 1
-        dphi_r(i,1) = 0;
-    else
-        dphi_r(i,1) = (phi_r(i,1)-phi_r(i-1,1))/dt;
     end
 
     %% エルロン入力の計算
