@@ -125,38 +125,33 @@ for i = 1 : length(time)
         yI{iu} =X_I{iu}(i,2); %位置y[m]
         psi{iu}=X_I{iu}(i,3); %ヨー角[rad]
         s{iu} = X_I{iu}(i,4); %経路長s [m]
-    end
-
-
     %参照経路情報(現時点の経路情報)
-    for iu = 1:2
         F{iu}(i,:) = F_PATH_FX79_r1(Cxi{iu}(i,:))';
-    end
 
     %参照経路情報(現時点の経路情報)の取り出し
-    for iu = 1:2
         chi_d{iu} = F{iu}(i,3);  % 目標航路角[rad]
         kappa{iu} = F{iu}(i,5);  % 曲率[rad/m]
         xi{iu} = F{iu}(i,6);     % 媒介変数 xi（ζ）
-    end
 
     %慣性座標系におけるx,yの目標との偏差
-    x_eI = (X_I(i,1:2) - F(i,1:2))';
+        x_eI{iu} = (X_I{iu}(i,1:2) - F{iu}(i,1:2))';
 
-    %対地速度Vgの計算
-    %機体座標系{B} → 慣性座標系{I}の回転行列...?個人的な解釈は，V_aをベクトルにするための三角関数
-     SyIB=[cos(psi) sin(psi);  % ヨー回転
-          -sin(psi) cos(psi)];
+        %対地速度Vgの計算
+        %機体座標系{B} → 慣性座標系{I}の回転行列...?個人的な解釈は，V_aをベクトルにするための三角関数
+        SyIB{iu}=[cos(psi{iu}) sin(psi{iu});  % ヨー回転
+                 -sin(psi{iu}) cos(psi{iu})];
+        
+        % 対地速度ベクトル,x方向はそのままdot_x, y方向はそのままdot_yとなる
+        % と思ったけど，後でdx，dyはなぜか再定義されてる．．．？
+        V_g_vec{iu} = SyIB{iu}*[V_a; 0] + [Wx; Wy];  % [m/s]
+        % 対地速度の大きさ（ノルム）
+        V_g{iu}(i,1) = norm{iu}(V_g_vec);  % [m/s]
 
-    % 対地速度ベクトル,x方向はそのままdot_x, y方向はそのままdot_yとなる
-    % と思ったけど，後でdx，dyはなぜか再定義されてる．．．？
-    V_g_vec = SyIB*[V_a; 0] + [Wx; Wy];  % [m/s]
+        % 航路角χの導出
+        chi{iu} = atan2(-V_g_vec{iu}(2),V_g_vec{iu}(1));  % [rad]
+    end
 
-    % 対地速度の大きさ（ノルム）
-    V_g(i,1) = norm(V_g_vec);  % [m/s]
 
-    % 航路角χの導出
-    chi = atan2(-V_g_vec(2),V_g_vec(1));  % [rad]
 
     %% 慣性座標系からセレ・フレネ座標系への変換
     %χeの補正
