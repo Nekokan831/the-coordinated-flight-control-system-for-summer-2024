@@ -48,6 +48,7 @@ ZV = zeros([length(time),1]); % 0ベクトル
 phi_r_f= zeros([length(time),1]);
 D_phi_r_f = zeros([length(time),1]);
 
+chi_d = zeros([length(time),1]);
 dchi_d = zeros([length(time),1]);
 
 dchi_d_f = zeros([length(time),1]);
@@ -109,7 +110,7 @@ for i = 1 : length(time)
     F(i,:) = F_PATH_FX79_r1(Cxi(i,:))';
 
     %参照経路情報(現時点の経路情報)の取り出し
-    chi_d = F(i,3);  % 目標航路角[rad]
+    chi_d(i,1) = F(i,3);  % 目標航路角[rad]
     kappa = F(i,5);  % 曲率[rad/m]
     xi = F(i,6);     % 媒介変数 xi（ζ）
 
@@ -133,7 +134,7 @@ for i = 1 : length(time)
 
     %% 慣性座標系からセレ・フレネ座標系への変換
     %χeの補正
-    x_e_vec(i,3) = -chi + chi_d; %χeの導出
+    x_e_vec(i,3) = -chi + chi_d(i,1); %χeの導出
                                  %chi - chi_dではない理由は，回転行列のsinの符号を揃えるため...?
     while (x_e_vec(i,3) < -pi || x_e_vec(i,3) >= pi)  % 0 <= chi_e < 2*pi の否定
         if (x_e_vec(i,3) > pi)
@@ -147,8 +148,8 @@ for i = 1 : length(time)
 
     %慣性座標系{I}→セレ・フレネ座標系{F}の回転行列
     %ここはzの座標軸を機体下向きに取っているのでsinの符号が普通の機体とは逆．発狂．
-    SyIF0=[cos(chi_d) -sin(chi_d);
-           sin(chi_d) cos(chi_d)];
+    SyIF0=[cos(chi_d(i,1)) -sin(chi_d(i,1));
+           sin(chi_d(i,1)) cos(chi_d(i,1))];
 
     %慣性座標系におけるx,y偏差を，セレ・フレネ座標系における誤差xe,yeへ座標軸回転
     x_e_vec(i,1:2) = (SyIF0*x_eI)';
@@ -166,6 +167,16 @@ for i = 1 : length(time)
     %% 目標ロール角の計算
     %目標ロール角の計算
     %A_Practical_Design_Approach_for_Complex_Path_Tracking_Controlの式26
+
+    if i == 1
+        dchi_d(i,1) = chi_d(i,1);
+    else
+        dchi_d(i,1) = (chi_d(i,1) - chi_d(i-1,1))/dt;
+        if abs(dchi_d(i,1)) > 1
+            dchi_d(i,1) = 0;
+        end
+    end
+ 
     phi_r(i,1) = atan((V_g(i,1)/(a*g))*(b*(y_e+a*chi_e)+V_g(i,1)*sin(chi_e)-V_g(i,1)*kappa*x_e*cos(chi_e)+a*dchi_d(i,1)-c*kappa*x_e^2));
     
     %% 目標ロール角にLPF , phi_r_fにはD_phi_rの積分値っぽいものが入ってる
@@ -183,6 +194,9 @@ for i = 1 : length(time)
         dphi_r(i,1) = 0;
     else
         dphi_r(i,1) = (phi_r(i,1)-phi_r(i-1,1))/dt;
+        if abs(dphi_r(i,1)) > 1
+            dphi_r(i,1) = 0;
+        end
     end
 
     %% エルロン入力の計算
@@ -215,6 +229,9 @@ for i = 1 : length(time)
 
     % 詳細なパラメータについて定義してるだけ
     dphi = p(i,1);                                     %4
+    if abs(dphi) > 3
+        dphi = 0;
+    end
     dp = Mc*delta_a(i,1)/Ixx;                          %5
 
     % ここまで出てきた状態変数の時系列データ格納用
