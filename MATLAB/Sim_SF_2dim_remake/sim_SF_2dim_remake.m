@@ -168,14 +168,7 @@ for i = 1 : length(time)
     %目標ロール角の計算
     %A_Practical_Design_Approach_for_Complex_Path_Tracking_Controlの式26
 
-    if i == 1
-        dchi_d(i,1) = chi_d(i,1);
-    else
-        dchi_d(i,1) = (chi_d(i,1) - chi_d(i-1,1))/dt;
-        if abs(dchi_d(i,1)) > 1
-            dchi_d(i,1) = 0;
-        end
-    end
+    dchi_d(i,1) = F(i,4); % 目標航路角速度 [rad/s]
  
     phi_r(i,1) = atan((V_g(i,1)/(a*g))*(b*(y_e+a*chi_e)+V_g(i,1)*sin(chi_e)-V_g(i,1)*kappa*x_e*cos(chi_e)+a*dchi_d(i,1)-c*kappa*x_e^2));
     
@@ -194,9 +187,6 @@ for i = 1 : length(time)
         dphi_r(i,1) = 0;
     else
         dphi_r(i,1) = (phi_r(i,1)-phi_r(i-1,1))/dt;
-        if abs(dphi_r(i,1)) > 1
-            dphi_r(i,1) = 0;
-        end
     end
 
     %% エルロン入力の計算
