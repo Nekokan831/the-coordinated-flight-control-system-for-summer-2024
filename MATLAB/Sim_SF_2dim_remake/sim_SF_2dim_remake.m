@@ -219,9 +219,6 @@ for i = 1 : length(time)
 
     % 詳細なパラメータについて定義してるだけ
     dphi = p(i,1);                                     %4
-    if abs(dphi) > 3
-        dphi = 0;
-    end
     dp = Mc*delta_a(i,1)/Ixx;                          %5
 
     % ここまで出てきた状態変数の時系列データ格納用
